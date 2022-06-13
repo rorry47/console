@@ -1,3 +1,21 @@
+INSTALL
+
+This script uses: Apache+Nginx, PHP 7.4. 
+
+Linux utils: 
+- whois
+- ping 
+- nslookup
+- dig
+- httping
+- traceroute
+- nmap
+- curl
+- openssl
+
+____________________
+
+UPDATES
 ____________________
 | v1.2             |
 | Date: 04.06.2022 |
