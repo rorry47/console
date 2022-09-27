@@ -1,6 +1,6 @@
 INSTALL
 
-This script uses: Apache+Nginx, PHP 7.4. 
+This script uses: Apache\Nginx, PHP 7.4. 
 
 Linux utils: 
 - whois
