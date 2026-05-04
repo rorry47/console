@@ -1,51 +1,70 @@
+## Simple console in browse
+
+<img src="https://github.com/rorry47/console/blob/main/console.jpg">
+
 INSTALL
 
-This script uses: Apache\Nginx, PHP 7.4. 
+This script uses: Apache\Nginx, PHP 7.4+. 
 
-Linux utils: 
-- whois
-- ping 
-- nslookup
-- dig
-- httping
-- traceroute
-- nmap
-- curl
-- openssl
+Install: 
+```
+# Core network and diagnostics
+sudo apt install -y whois dnsutils iputils-ping traceroute nmap curl
 
-____________________
+# For httping (often not in the database)
+sudo apt install -y httping
 
-UPDATES
-____________________
-| v1.2             |
-| Date: 04.06.2022 |
+# For GeoIP (unless you are using a ip-api.com API)
+# But it's easier to pull through curl ip-api.com/json/ {ip}
+sudo apt install -y geoip-bin
 
-- Fixed errors when entering a non-existent command.
-- A command that was entered in capital letters is no longer considered an error.
+# To work with DNSSEC (often included in bind9-host or ldnsutils)
+sudo apt install -y ldnsutils
 
-____________________
-| v1.1             |
-| Date: 26.04.2022 |
+# For specific port checks (nc - netcat)
+sudo apt install -y netcat-openbsd
+```
 
-- Commands added:
-- - nmap [domain] [ip] - scan port server
-- - list [proxy] [http] [socks4\5] - list IP-s and port or username proxy
-- - nslookup [domain] [ip]  - check DNS for domain or ip
-- - color [A][B][C][D][X][P][] - color themes console
-- - info - simple text about console and contact
-- - exit - close console end redirect to website
 
-- Color themes are specified depending on the meaning of the letters. To switch to the standard one, you need to send the "color" command without specifying letters.
+---
 
-____________________
-| v1.0             |
-| Date: 19.04.2022 |
+## Commands
 
-- Commands added:
-- - whois [domain] [ip] - services for whois domain
-- - ping [domain] [ip] - ping domain or ip
-- - httping [domain] [ip] - httping domain or ip
-- - dig [domain] - check dns record for domain
-- - curl [domain] [ip] - server response
-- - ssl [domain] [ip]  - check infossl sertificate
-- - ptr [ip] - check PTR record for ip
+## 🌐 Network Tools
+| Command | Arguments | Description |
+| :--- | :--- | :--- |
+| `whois` | `[host]` | WHOIS lookup for domain or IP |
+| `rdap` | `[host]` | Modern WHOIS (RDAP) lookup |
+| `geoip` | `[host\|ip]` | Country, city, ISP, and ASN info |
+| `headers` | `[host]` | Show HTTP response headers |
+| `dnsbl` | `[ip]` | Check IP against spam blacklists |
+| `dnssec` | `[domain]` | Check DNSSEC signature & chain of trust |
+| `redirect` | `[url]` | Full redirect chain with status codes |
+| `tech` | `[domain]` | Detect CMS, framework, server, CDN |
+| `ping` | `[host]` | ICMP ping (4 packets) |
+| `httping` | `[host]` | Performance check via HTTP |
+| `dig` | `[host] [type]` | DNS lookup (A, MX, NS, TXT, etc.) |
+| `nslookup`| `[host]` | Classic DNS lookup |
+| `nmap` | `[host]` | Fast port scan (top ports) |
+| `ssl` | `[host]` | TLS certificate details |
+| `tracert` | `[host]` | Traceroute to destination |
+| `ptr` | `[ip]` | Reverse DNS (PTR record) |
+| `port` | `[host] [port]` | Check if a specific port is open |
+
+## 🔐 Encoding & Crypto
+*   `passgen [length]` — Generate a secure random password.
+*   `hash <algo> <text>` — MD5, SHA1, SHA256, SHA512.
+*   `base64 <encode|decode> <text>` — Base64 processing.
+*   `urlencode` / `urldecode` — URL string manipulation.
+
+## 🛰️ Proxy & System
+*   `list <proxy|http|socks4|socks5>` — Fetch fresh proxy lists.
+*   `myip` — Show your current IP address.
+*   `uptime` / `date` — Server state and time.
+*   `whoami` — Current console identity.
+
+## ⌨️ Console Management
+*   `su [name]` — Change display name.
+*   `color [a|b|c|d|x|p]` — Switch UI color theme.
+*   `clear` / `cls` — Wipe console output.
+*   `exit` — Leave console (redirects to site).
