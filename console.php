@@ -538,7 +538,7 @@ if ($command === 'dig') {
                     'User-Agent: console/2.0',
                 ],
             ]);
-            $result = curl_boundedExec($ch);
+            $result = curl_exec($ch);
             $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
 
@@ -850,7 +850,7 @@ if ($command === 'dnsbl') {
                 CURLOPT_SSL_VERIFYPEER => true,
                 CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; console/2.0)',
             ]);
-            $response  = curl_boundedExec($ch);
+            $response  = curl_exec($ch);
             $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             $total_time = round(curl_getinfo($ch, CURLINFO_TOTAL_TIME) * 1000);
             curl_close($ch);
@@ -930,10 +930,10 @@ if ($command === 'dnsbl') {
             CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_MAXREDIRS      => 5,
             CURLOPT_TIMEOUT        => 10,
-            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; console/2.0)',
         ]);
-        $response  = curl_boundedExec($ch);
+        $response  = curl_exec($ch);
         $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $header_size = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
         curl_close($ch);
