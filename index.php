@@ -103,7 +103,12 @@ if (!empty($_SESSION['var']) && isset($_POST['command'])) {
     // IP-based limits shared across sessions (including fresh browser sessions).
     // Use the actual TCP peer address; never trust client-supplied IP headers.
     $clientIp = (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown');
-    $cmdParts = preg_split('/\\s+/', trim((string)$_POST['command']), 2);
+    if (!is_string($_POST['command']) || strlen($_POST['command']) > 2048) {
+        http_response_code(400);
+        echo 'Invalid command.';
+        exit();
+    }
+    $cmdParts = preg_split('/\s+/', trim($_POST['command']), 2);
     $cmdName = strtolower($cmdParts[0] ?? '');
     $heavy = in_array($cmdName, ['nmap', 'tracert', 'whois', 'rdap', 'dnsbl', 'dnssec'], true);
     $limitFile = sys_get_temp_dir() . '/console-rate-' . hash('sha256', $clientIp) . '.json';
@@ -128,6 +133,22 @@ if (!empty($_SESSION['var']) && isset($_POST['command'])) {
     fflush($fp);
     flock($fp, LOCK_UN);
     fclose($fp);
+    // Occasionally purge stale IP counters without scanning unbounded directories.
+    if (random_int(1, 200) === 1) {
+        $dir = @opendir(sys_get_temp_dir());
+        if ($dir !== false) {
+            $scanned = 0;
+            $removed = 0;
+            while ($scanned < 2000 && $removed < 100 && ($name = readdir($dir)) !== false) {
+                $scanned++;
+                if (!preg_match('/^console-rate-[a-f0-9]{64}\\.json$/D', $name)) continue;
+                $path = sys_get_temp_dir() . '/' . $name;
+                $mtime = @filemtime($path);
+                if ($mtime !== false && $mtime < time() - 172800 && @unlink($path)) $removed++;
+            }
+            closedir($dir);
+        }
+    }
     if ($limited) {
         http_response_code(429);
         header('Retry-After: ' . max(1, $state['until'] - $now));
