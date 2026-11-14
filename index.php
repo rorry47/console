@@ -325,6 +325,43 @@ body{height:100dvh;min-height:0;display:flex;flex-direction:column;padding-botto
 .status{margin-right:0;white-space:nowrap}
 @media(max-width:900px){#workspace-top{align-items:flex-start}.top-actions{gap:10px}.action-group{padding-left:0;border-left:0}.brand-subtitle{font-size:11px}}
 @media(max-width:640px){#workspace-top{gap:14px}.top-actions{width:100%;justify-content:space-between;gap:8px}.theme-control{gap:7px}.theme-label{display:none}.theme-select-wrap{min-width:120px}.action-group{gap:6px}.ui-button{min-height:39px;padding:8px 10px;gap:6px}.action-group .button-label{display:none}.status{display:none}}
+/* UI refresh: decorative layers, improved hierarchy and accessible focus. */
+body{position:relative;isolation:isolate}
+body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;background:conic-gradient(from 160deg at 50% 50%,transparent 0deg,var(--page-glow) 68deg,transparent 135deg,var(--page-glow2) 235deg,transparent 310deg);filter:blur(95px);opacity:.33;animation:ambient-drift 28s ease-in-out infinite alternate}
+@keyframes ambient-drift{from{transform:translate3d(-3%,1%,0) rotate(-8deg)}to{transform:translate3d(4%,-3%,0) rotate(9deg)}}
+#workspace-top{position:relative}
+.brand-icon{position:relative;overflow:hidden;font-weight:800;letter-spacing:-2px;box-shadow:inset 0 1px 0 #ffffff19,0 8px 26px #0003,0 0 25px var(--page-glow);transition:transform .25s ease,box-shadow .25s ease}
+.brand-icon::after{content:"";position:absolute;inset:-50%;background:linear-gradient(120deg,transparent 35%,#ffffff22 50%,transparent 65%);transform:translateX(-90%) rotate(15deg);transition:transform .65s ease}
+.brand:hover .brand-icon{transform:translateY(-2px)}
+.brand:hover .brand-icon::after{transform:translateX(90%) rotate(15deg)}
+.brand-title{font-weight:800}
+.brand-subtitle{opacity:.95}
+#terminal-shell{position:relative;box-shadow:0 28px 90px #0008,0 0 0 1px #ffffff07,inset 0 1px 0 #ffffff0c;transition:border-color .3s ease,box-shadow .3s ease}
+#terminal-shell:focus-within{border-color:var(--acc);box-shadow:0 28px 90px #0008,0 0 0 1px var(--page-glow),inset 0 1px 0 #ffffff10}
+#header-bar{position:relative;min-height:49px;background:linear-gradient(180deg,#ffffff09,transparent),var(--header-bg)}
+#header-bar::after{content:"";position:absolute;bottom:-1px;left:0;width:100%;height:1px;background:linear-gradient(90deg,transparent,var(--acc),transparent);opacity:.35}
+#header-bar .dot{box-shadow:inset 0 1px 2px #ffffff66,0 0 0 1px #0003}
+#header-bar .title{font-weight:650;letter-spacing:.12px;color:var(--fg)}
+#output{background:radial-gradient(ellipse 75% 60% at 50% 0%,var(--page-glow),transparent 75%),var(--output-bg)}
+.cmd-block{position:relative;animation:command-enter .23s ease-out both}
+@keyframes command-enter{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+.cmd-line{font-weight:600;letter-spacing:.05px}
+.cmd-line .entered-command{font-weight:500}
+.result{border-left-color:var(--border);border-radius:0 8px 8px 0;transition:border-color .2s ease}
+.cmd-block:hover .result{border-left-color:var(--acc)}
+#input-wrapper{background:linear-gradient(180deg,#ffffff05,transparent),var(--input-bg);box-shadow:0 -8px 30px #00000014}
+#input-wrapper:focus-within .prompt-label{filter:drop-shadow(0 0 6px var(--page-glow))}
+#command-input{line-height:1.8}
+#command-input:focus-visible{outline:none}
+#run-button{border-color:var(--brand-border);background:var(--brand-bg);color:var(--acc);font-weight:750}
+#run-button:hover{background:var(--button-hover);box-shadow:0 0 0 1px var(--brand-border)}
+.ui-button{transition:background .2s,border-color .2s,transform .2s,box-shadow .2s}
+.ui-button:hover{transform:translateY(-1px);box-shadow:0 4px 14px #0002}
+.ui-button:active{transform:translateY(0)}
+#terminal-footer{background:linear-gradient(180deg,#ffffff04,transparent),var(--footer-bg)}
+.kbd{background:#7f9ab014;border-color:var(--border);box-shadow:inset 0 -1px 0 #0002}
+@media(max-width:640px){#header-bar{min-height:44px}#workspace-top{padding-top:0}.brand-icon{width:40px;height:40px}.ui-button:hover{transform:none}}
+@media(prefers-reduced-motion:reduce){body::after,.cmd-block{animation:none!important}.brand-icon,.ui-button,#terminal-shell{transition:none!important}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;scroll-behavior:auto!important}}
 </style>
 
