@@ -653,8 +653,6 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
         activeTab = stored && Number.isInteger(stored.active) ? Math.max(0,Math.min(stored.active,tabs.length-1)) : 0;
     } catch (_) { tabs=[]; }
     if (!tabs.length) tabs=[{transcript:[],history:[],draft:''}];
-    renderTab();
-    persistTabs();
     try { sessionStorage.removeItem(legacyKey); } catch (_) {}
 
     // Local command catalog mirrors the server-side help list; no network requests.
@@ -752,6 +750,8 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
     const completionPanel = document.getElementById('completion-panel');
     let completionItems = [];
     let completionIndex = 0;
+    renderTab();
+    persistTabs();
     function hideCompletions() {
         completionPanel.hidden = true;
         completionPanel.replaceChildren();
