@@ -261,19 +261,13 @@ if (in_array($command, $net_cmds, true)) {
     $host = sanitizeHost($arg1);
     if ($host !== $arg1 || $host === '') { err('Invalid host format'); exit(); }
 
-    if (isBlocked($host)) {
-        err("$command: host not allowed");
-        exit();
-    }
-
-    if (!validateHost($host)) {
-        err("$command: cannot resolve '$host'");
-        exit();
-    }
-
-    // Resolve once and pin IP for active network tools to avoid DNS rebinding.
+    // Resolve the destination once per command. Never use an unchecked
+    // second DNS lookup when opening an active connection.
     $targetIp = resolvePublicIp($host);
-    if ($targetIp === null) { err('Host not allowed'); exit(); }
+    if ($targetIp === null) {
+        err("$command: host not allowed or cannot resolve");
+        exit();
+    }
     // ── ping ──────────────────────────────────────────────────────────────────
     if ($command === 'ping') {
         boundedExec('ping -c 4 -W 3 ' . escapeshellarg($targetIp) . ' 2>&1', $out);
@@ -1076,8 +1070,28 @@ if ($command === 'list') {
         err('list: usage: list proxy|http|socks4|socks5');
         exit();
     }
-    $ctx  = stream_context_create(['http' => ['timeout' => 10]]);
-    $data = @file_get_contents($sources[$type], false, $ctx);
+    $ch = curl_init($sources[$type]);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => false,
+        CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
+        CURLOPT_CONNECTTIMEOUT => 4,
+        CURLOPT_TIMEOUT => 10,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_RANGE => '0-65535',
+        CURLOPT_WRITEFUNCTION => static function ($curl, string $chunk) use (&$data): int {
+            if (strlen($data) + strlen($chunk) > 65536) return 0;
+            $data .= $chunk;
+            return strlen($chunk);
+        },
+    ]);
+    $data = '';
+    $fetched = curl_exec($ch);
+    $httpStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if ($fetched === false && $data === '') $data = false;
+    if ($httpStatus !== 200 && $httpStatus !== 206) $data = false;
     if ($data === false) {
         err('list: failed to fetch list');
     } else {
