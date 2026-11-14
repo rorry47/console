@@ -1010,7 +1010,7 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
         });
         const nodes = [];
         while (walker.nextNode() && nodes.length < 400) nodes.push(walker.currentNode);
-        const pattern = /\b(?:HTTP\/\d(?:\.\d)?\s+)?([1-5]\d{2})\b|\b(?:\d{1,3}\.){3}\d{1,3}\b|\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}\b/gi;
+        const pattern = /\bHTTP\/\d(?:\.\d)?\s+([1-5]\d{2})\b|\b(?:\d{1,3}\.){3}\d{1,3}\b|\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}\b/gi;
         for (const node of nodes) {
             const text = node.nodeValue;
             pattern.lastIndex = 0;
@@ -1025,7 +1025,7 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
                 const token = document.createElement('span');
                 const code = match[1] ? Number(match[1]) : 0;
                 if (code) token.className = code < 300 ? 'token-http-ok' : code < 400 ? 'token-http-warn' : 'token-http-error';
-                else token.className = /^\\d/.test(value) ? 'token-ip' : 'token-domain';
+                else token.className = /^(?:\\d{1,3}\\.){3}\\d{1,3}$/.test(value) ? 'token-ip' : 'token-domain';
                 token.textContent = value;
                 fragment.append(token);
                 last = index + value.length;
