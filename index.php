@@ -142,7 +142,50 @@ if (!empty($_SESSION['var']) && isset($_POST['command'])) {
         exit();
     }
 
-    require './console.php';
+    // Process-wide concurrency cap shared by all PHP-FPM workers and sessions.
+    // Keep locks open for the entire command; OS releases them on worker exit.
+    // Lock files are permanent: never unlink them (avoids split-lock races).
+    $slotDir = sys_get_temp_dir();
+    $acquireSlot = static function (string $kind, int $capacity) use ($slotDir) {
+        for ($slot = 0; $slot < $capacity; $slot++) {
+            $path = $slotDir . '/console-exec-' . $kind . '-' . $slot . '.lock';
+            $handle = @fopen($path, 'c');
+            if ($handle === false) return false;
+            if (flock($handle, LOCK_EX | LOCK_NB)) return $handle;
+            fclose($handle);
+        }
+        return false;
+    };
+    $globalSlot = $acquireSlot('global', 6);
+    if ($globalSlot === false) {
+        http_response_code(429);
+        header('Retry-After: 3');
+        echo 'Server busy. Please retry shortly.';
+        exit();
+    }
+    $heavySlot = null;
+    if ($heavy) {
+        $heavySlot = $acquireSlot('heavy', 2);
+        if ($heavySlot === false) {
+            flock($globalSlot, LOCK_UN);
+            fclose($globalSlot);
+            http_response_code(429);
+            header('Retry-After: 3');
+            echo 'Heavy command capacity reached. Please retry shortly.';
+            exit();
+        }
+    }
+    // Explicit release also covers normal return; PHP releases locks on fatal exit.
+    try {
+        require './console.php';
+    } finally {
+        if (is_resource($heavySlot)) {
+            flock($heavySlot, LOCK_UN);
+            fclose($heavySlot);
+        }
+        flock($globalSlot, LOCK_UN);
+        fclose($globalSlot);
+    }
     exit();
 }
 
