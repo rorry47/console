@@ -55,25 +55,51 @@ function sanitizeHost(string $input): string {
  * Returns true if safe to use with network tools.
  */
 function validateHost(string $host): bool {
-    if (filter_var($host, FILTER_VALIDATE_IP)) {
-        return true;
-    }
-    $resolved = gethostbyname($host);
-    return filter_var($resolved, FILTER_VALIDATE_IP) !== false;
+    return resolvePublicIp($host) !== null;
 }
 
 /**
- * Blocked IPs/ranges that must not be targeted.
+ * Resolve and accept only public A/AAAA answers. Reject mixed public/private
+ * DNS answers, loopback, link-local, reserved and IPv4-mapped IPv6.
  */
-function isBlocked(string $host): bool {
-    $blocked = ['127.0.0.1', 'localhost', '0.0.0.0', '::1'];
-    if (in_array(strtolower($host), $blocked, true)) return true;
-    // Block RFC-1918 private ranges
-    $ip = filter_var($host, FILTER_VALIDATE_IP) ? $host : gethostbyname($host);
-    if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
-        return true;
+function resolvePublicIp(string $host): ?string {
+    if (filter_var($host, FILTER_VALIDATE_IP)) {
+        return isPublicIp($host) ? $host : null;
     }
-    return false;
+    if (!preg_match('/^(?=.{1,253}$)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/i', $host)) return null;
+    $records = @dns_get_record($host, DNS_A | DNS_AAAA);
+    if (!$records) return null;
+    $ips = [];
+    foreach ($records as $record) {
+        $ip = $record['ip'] ?? $record['ipv6'] ?? null;
+        if (!is_string($ip) || !isPublicIp($ip)) return null;
+        $ips[] = $ip;
+    }
+    return $ips ? $ips[0] : null;
+}
+function isPublicIp(string $ip): bool {
+    if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) return false;
+    if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+        // Reject IPv4 mapped IPv6 and IPv6 addresses outside global unicast.
+        if (stripos($ip, '::ffff:') !== false) return false;
+        // Detect IPv4-mapped addresses even when written in full IPv6 form.
+        $packed = inet_pton($ip);
+        if ($packed !== false && substr($packed, 0, 12) === str_repeat("\x00", 10) . "\xff\xff") return false;
+        $binary = inet_pton($ip);
+        if ($binary === false || (ord($binary[0]) & 0xe0) !== 0x20) return false;
+    }
+    return true;
+}
+function isBlocked(string $host): bool {
+    return resolvePublicIp($host) === null;
+}
+
+/** Bounded shell execution; requires GNU coreutils timeout on the host. */
+function boundedExec(string $command, ?array &$output): void {
+    $output = [];
+    $wrapped = 'timeout --signal=TERM --kill-after=2s 20s sh -c '
+        . escapeshellarg($command) . ' 2>&1 | head -c 65536';
+    exec($wrapped, $output);
 }
 
 /**
@@ -81,7 +107,7 @@ function isBlocked(string $host): bool {
  */
 function runAndPrint(array $parts): void {
     $cmd = implode(' ', array_map('escapeshellarg', $parts));
-    exec($cmd . ' 2>&1', $output);
+    boundedExec($cmd . ' 2>&1', $output);
     foreach ($output as $line) {
         echo htmlspecialchars($line, ENT_QUOTES, 'UTF-8') . '<br>';
     }
@@ -146,7 +172,7 @@ if ($command === 'date') {
 
 // ─── uptime ───────────────────────────────────────────────────────────────────
 if ($command === 'uptime') {
-    exec('uptime -p 2>/dev/null', $out);
+    boundedExec('uptime -p 2>/dev/null', $out);
     echo !empty($out) ? htmlspecialchars($out[0], ENT_QUOTES, 'UTF-8') : 'uptime: not available';
     exit();
 }
@@ -238,22 +264,16 @@ if (in_array($command, $net_cmds, true)) {
     $host = sanitizeHost($arg1);
     if ($host !== $arg1 || $host === '') { err('Invalid host format'); exit(); }
 
-    if (isBlocked($host)) {
-        err("$command: host not allowed");
+    // Resolve the destination once per command. Never use an unchecked
+    // second DNS lookup when opening an active connection.
+    $targetIp = resolvePublicIp($host);
+    if ($targetIp === null) {
+        err("$command: host not allowed or cannot resolve");
         exit();
     }
-
-    if (!validateHost($host)) {
-        err("$command: cannot resolve '$host'");
-        exit();
-    }
-
-    // Resolve once and pin IP for active network tools to avoid DNS rebinding.
-    $targetIp = filter_var($host, FILTER_VALIDATE_IP) ? $host : gethostbyname($host);
-    if (isBlocked($targetIp)) { err('Host not allowed'); exit(); }
     // ── ping ──────────────────────────────────────────────────────────────────
     if ($command === 'ping') {
-        exec('ping -c 4 -W 3 ' . escapeshellarg($targetIp) . ' 2>&1', $out);
+        boundedExec('ping -c 4 -W 3 ' . escapeshellarg($targetIp) . ' 2>&1', $out);
         foreach ($out as $line) {
             echo htmlspecialchars($line, ENT_QUOTES, 'UTF-8') . '<br>';
         }
@@ -262,7 +282,7 @@ if (in_array($command, $net_cmds, true)) {
 
     // ── tracert ───────────────────────────────────────────────────────────────
     if ($command === 'tracert') {
-        exec('traceroute -m 20 -w 3 ' . escapeshellarg($targetIp) . ' 2>&1', $out);
+        boundedExec('traceroute -m 20 -w 3 ' . escapeshellarg($targetIp) . ' 2>&1', $out);
         foreach ($out as $line) {
             echo htmlspecialchars($line, ENT_QUOTES, 'UTF-8') . '<br>';
         }
@@ -271,7 +291,7 @@ if (in_array($command, $net_cmds, true)) {
 
     // ── nslookup ──────────────────────────────────────────────────────────────
     if ($command === 'nslookup') {
-        exec('nslookup -type=any ' . escapeshellarg($host) . ' 2>&1 | tail -n +4', $out);
+        boundedExec('nslookup -type=any ' . escapeshellarg($host) . ' 2>&1 | tail -n +4', $out);
         foreach ($out as $line) {
             echo htmlspecialchars($line, ENT_QUOTES, 'UTF-8') . '<br>';
         }
@@ -284,7 +304,7 @@ if (in_array($command, $net_cmds, true)) {
             err('ptr: requires a valid IP address');
             exit();
         }
-        exec('dig -x ' . escapeshellarg($host) . ' +short 2>&1', $out);
+        boundedExec('dig -x ' . escapeshellarg($host) . ' +short 2>&1', $out);
         if (empty($out)) {
             echo 'No PTR record found.';
         } else {
@@ -297,7 +317,7 @@ if (in_array($command, $net_cmds, true)) {
 
     // ── whois ─────────────────────────────────────────────────────────────────
     if ($command === 'whois') {
-        exec('whois -H ' . escapeshellarg($host) . ' 2>&1', $out);
+        boundedExec('whois -H ' . escapeshellarg($host) . ' 2>&1', $out);
 
         // Check if whois returned anything useful
         // Ignore error messages like "getaddrinfo(...): Name or service not known"
@@ -334,11 +354,33 @@ if (in_array($command, $net_cmds, true)) {
             'https://rdap.org/domain/' . urlencode($host),          // universal fallback
         ];
         $json = null;
-        $ctx  = stream_context_create(['http' => ['timeout' => 8, 'ignore_errors' => true]]);
         foreach ($rdap_servers as $rdap_url) {
-            $json = @file_get_contents($rdap_url, false, $ctx);
-            if ($json && str_contains($json, 'ldhName')) break;
-            $json = null;
+            $result = '';
+            $ch = curl_init($rdap_url);
+            curl_setopt_array($ch, [
+                CURLOPT_PROXY => '',
+                CURLOPT_NOPROXY => '*',
+                CURLOPT_RETURNTRANSFER => false,
+                CURLOPT_CONNECTTIMEOUT => 4,
+                CURLOPT_TIMEOUT => 8,
+                CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
+                CURLOPT_FOLLOWLOCATION => false,
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_SSL_VERIFYHOST => 2,
+                CURLOPT_HTTPHEADER => ['Accept: application/rdap+json, application/json'],
+                CURLOPT_WRITEFUNCTION => static function ($curl, string $chunk) use (&$result): int {
+                    if (strlen($result) + strlen($chunk) > 262144) return 0;
+                    $result .= $chunk;
+                    return strlen($chunk);
+                },
+            ]);
+            $success = curl_exec($ch);
+            $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            if ($success !== false && $status === 200 && str_contains($result, 'ldhName')) {
+                $json = $result;
+                break;
+            }
         }
         if ($json) {
             $data = json_decode($json, true);
@@ -390,7 +432,7 @@ if ($command === 'dig') {
         $type = 'A';
     }
 
-    exec('dig ' . escapeshellarg($host) . ' ' . escapeshellarg($type) . ' +noall +answer 2>&1', $out);
+    boundedExec('dig ' . escapeshellarg($host) . ' ' . escapeshellarg($type) . ' +noall +answer 2>&1', $out);
 
     if (empty($out)) {
         echo 'No results.<br>';
@@ -405,7 +447,7 @@ if ($command === 'dig') {
 
     // ── nmap ──────────────────────────────────────────────────────────────────
     if ($command === 'nmap') {
-        exec('nmap -F --open ' . escapeshellarg($targetIp) . ' 2>&1', $out);
+        boundedExec('nmap -F --open ' . escapeshellarg($targetIp) . ' 2>&1', $out);
         foreach ($out as $line) {
             if (stripos($line, 'Nmap scan report') !== false) continue;
             echo htmlspecialchars($line, ENT_QUOTES, 'UTF-8') . '<br>';
@@ -422,7 +464,7 @@ if ($command === 'dig') {
             $url = $host;
         }
         $url = filter_var($url, FILTER_SANITIZE_URL);
-        exec('curl -Is --max-time 10 --max-redirs 5 ' . escapeshellarg($url) . ' 2>&1 | head -40', $out);
+        boundedExec('curl -q --noproxy \* -Is --max-time 10 --max-redirs 0 --resolve ' . escapeshellarg($host . ':443:' . $targetIp) . ' ' . escapeshellarg($url) . ' 2>&1 | head -40', $out);
         foreach ($out as $line) {
             echo htmlspecialchars($line, ENT_QUOTES, 'UTF-8') . '<br>';
         }
@@ -431,7 +473,7 @@ if ($command === 'dig') {
 
     // ── httping ───────────────────────────────────────────────────────────────
     if ($command === 'httping') {
-        exec('httping -c 4 -g ' . escapeshellarg('https://' . $targetIp) . ' 2>&1', $out);
+        boundedExec('httping -c 4 -g ' . escapeshellarg('https://' . $targetIp) . ' 2>&1', $out);
         foreach ($out as $line) {
             echo htmlspecialchars($line, ENT_QUOTES, 'UTF-8') . '<br>';
         }
@@ -441,9 +483,9 @@ if ($command === 'dig') {
     // ── ssl ───────────────────────────────────────────────────────────────────
     if ($command === 'ssl') {
         $cmd = 'echo | openssl s_client -servername ' . escapeshellarg($host)
-             . ' -connect ' . escapeshellarg($host . ':443')
+             . ' -connect ' . escapeshellarg($targetIp . ':443')
              . ' 2>/dev/null | openssl x509 -noout -issuer -subject -dates -fingerprint 2>&1';
-        exec($cmd, $out);
+        boundedExec($cmd, $out);
         if (empty($out)) {
             err('ssl: could not retrieve certificate (port 443 may be closed or invalid domain)');
         } else {
@@ -501,23 +543,33 @@ if ($command === 'dig') {
 
         $json = null;
         foreach ($urls as $rdap_url) {
+            $result = '';
             $ch = curl_init();
             curl_setopt_array($ch, [
-                CURLOPT_URL            => $rdap_url,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT        => 10,
-            CURLOPT_PROTOCOLS      => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+                CURLOPT_PROXY => '',
+                CURLOPT_NOPROXY => '*',
+                CURLOPT_URL => $rdap_url,
+                CURLOPT_RETURNTRANSFER => false,
+                CURLOPT_CONNECTTIMEOUT => 4,
+                CURLOPT_TIMEOUT => 10,
+                CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
                 CURLOPT_FOLLOWLOCATION => false,
-                CURLOPT_MAXREDIRS      => 0,
                 CURLOPT_SSL_VERIFYPEER => true,
-                CURLOPT_HTTPHEADER     => [
+                CURLOPT_SSL_VERIFYHOST => 2,
+                CURLOPT_HTTPHEADER => [
                     'Accept: application/rdap+json, application/json',
                     'User-Agent: console/2.0',
                 ],
+                CURLOPT_WRITEFUNCTION => static function ($curl, string $chunk) use (&$result): int {
+                    if (strlen($result) + strlen($chunk) > 262144) return 0;
+                    $result .= $chunk;
+                    return strlen($chunk);
+                },
             ]);
-            $result = curl_exec($ch);
+            $success = curl_exec($ch);
             $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
+            if ($success === false) $result = '';
 
             if ($result && $http_code === 200 && str_contains($result, 'ldhName')) {
                 $json = $result;
@@ -577,15 +629,23 @@ if ($command === 'dig') {
 
     // ── geoip ─────────────────────────────────────────────────────────────────
     if ($command === 'geoip') {
-        // Resolve to IP if hostname given
-        $ip = filter_var($host, FILTER_VALIDATE_IP) ? $host : gethostbyname($host);
-        if (!filter_var($ip, FILTER_VALIDATE_IP)) {
-            err('geoip: cannot resolve host to IP');
-            exit();
-        }
-
-        $ctx  = stream_context_create(['http' => ['timeout' => 8, 'ignore_errors' => true]]);
-        $json = @file_get_contents('http://ip-api.com/json/' . urlencode($ip) . '?fields=status,message,country,countryCode,regionName,city,zip,lat,lon,timezone,isp,org,as,query', false, $ctx);
+        // Use the already validated, pinned IP rather than resolving DNS again.
+        $ip = $targetIp;
+        $ch = curl_init('http://ip-api.com/json/' . rawurlencode($ip) . '?fields=status,message,country,countryCode,regionName,city,zip,lat,lon,timezone,isp,org,as,query');
+        curl_setopt_array($ch, [
+                CURLOPT_PROXY => '',
+                CURLOPT_NOPROXY => '*',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_PROTOCOLS => CURLPROTO_HTTP,
+            CURLOPT_CONNECTTIMEOUT => 4,
+            CURLOPT_TIMEOUT => 8,
+            CURLOPT_MAXREDIRS => 0,
+        ]);
+        $json = curl_exec($ch);
+        $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($status !== 200 || !is_string($json) || strlen($json) > 16384) $json = false;
 
         if (!$json || !($data = json_decode($json, true)) || ($data['status'] ?? '') !== 'success') {
             err('geoip: failed to get data for ' . htmlspecialchars($ip, ENT_QUOTES, 'UTF-8'));
@@ -619,50 +679,30 @@ if ($command === 'dig') {
 
     // ── headers ───────────────────────────────────────────────────────────────
     if ($command === 'headers') {
-        if (!preg_match('#^https?://#i', $host)) {
-            $url = 'https://' . $host;
-        } else {
-            $url = $host;
-        }
-        $url = filter_var($url, FILTER_SANITIZE_URL);
-
-        $ctx = stream_context_create([
-            'http' => [
-                'timeout'         => 10,
-                'follow_location' => false,
-                'ignore_errors'   => true,
-                'method'          => 'HEAD',
-                'user_agent'      => 'Mozilla/5.0 (compatible; console/2.0)',
-            ],
-            'ssl' => [
-                'verify_peer'      => true,
-                'verify_peer_name' => true,
-            ],
+        $url = 'https://' . $host . '/';
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+                CURLOPT_PROXY => '',
+                CURLOPT_NOPROXY => '*',
+            CURLOPT_RESOLVE => [$host . ':443:' . (filter_var($targetIp, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) ? '[' . $targetIp . ']' : $targetIp)],
+            CURLOPT_NOBODY => true,
+            CURLOPT_HEADER => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_CONNECTTIMEOUT => 4,
+            CURLOPT_TIMEOUT => 10,
+            CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
         ]);
-
-        $headers = @get_headers($url, true, $ctx);
-
-        if (!$headers) {
-            // Fallback: try HTTP
-            $url_http = str_replace('https://', 'http://', $url);
-            $headers  = @get_headers($url_http, true, $ctx);
-        }
-
-        if (!$headers) {
-            err('headers: could not connect to ' . htmlspecialchars($host, ENT_QUOTES, 'UTF-8'));
+        $headers = curl_exec($ch);
+        $error = curl_error($ch);
+        curl_close($ch);
+        if ($headers === false) {
+            err('headers: ' . $error);
             exit();
         }
-
-        foreach ($headers as $key => $value) {
-            if (is_int($key)) {
-                // Status line (e.g. HTTP/1.1 200 OK)
-                echo '<b>' . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . '</b><br>';
-            } else {
-                $val = is_array($value) ? implode(', ', $value) : $value;
-                echo '<b>' . htmlspecialchars($key, ENT_QUOTES, 'UTF-8') . ':</b> '
-                   . htmlspecialchars($val, ENT_QUOTES, 'UTF-8') . '<br>';
-            }
-        }
+        echo nl2br(htmlspecialchars(substr($headers, 0, 16384), ENT_QUOTES, 'UTF-8'), false);
         exit();
     }
 // ── dnsbl ─────────────────────────────────────────────────────────────────
@@ -744,11 +784,11 @@ if ($command === 'dnsbl') {
         echo '<b>DNSSEC check for ' . htmlspecialchars($host, ENT_QUOTES, 'UTF-8') . '</b><br><br>';
 
         // Check DNSKEY record
-        exec('dig DNSKEY ' . escapeshellarg($host) . ' +short 2>&1', $dnskey);
+        boundedExec('dig DNSKEY ' . escapeshellarg($host) . ' +short 2>&1', $dnskey);
         // Check DS record
-        exec('dig DS ' . escapeshellarg($host) . ' +short 2>&1', $ds);
+        boundedExec('dig DS ' . escapeshellarg($host) . ' +short 2>&1', $ds);
         // Check RRSIG on A record
-        exec('dig A ' . escapeshellarg($host) . ' +dnssec +short 2>&1', $rrsig_out);
+        boundedExec('dig A ' . escapeshellarg($host) . ' +dnssec +short 2>&1', $rrsig_out);
 
         $has_dnskey = !empty(array_filter($dnskey));
         $has_ds     = !empty(array_filter($ds));
@@ -833,12 +873,14 @@ if ($command === 'dnsbl') {
             $urlHost = parse_url($current_url, PHP_URL_HOST);
             $urlPort = parse_url($current_url, PHP_URL_PORT);
             $urlScheme = strtolower((string)parse_url($current_url, PHP_URL_SCHEME));
-            if (!$urlHost || !in_array($urlScheme, ['http','https'], true) || ($urlPort !== null && !in_array($urlPort, [80,443], true)) || isBlocked($urlHost)) { err('Redirect target blocked'); break; }
-            $urlIp = filter_var($urlHost, FILTER_VALIDATE_IP) ? $urlHost : gethostbyname($urlHost);
-            if (isBlocked($urlIp)) { err('Redirect target blocked'); break; }
+            if (!$urlHost || !in_array($urlScheme, ['http','https'], true) || ($urlPort !== null && !in_array($urlPort, [80,443], true))) { err('Redirect target blocked'); break; }
+            $urlIp = resolvePublicIp($urlHost);
+            if ($urlIp === null) { err('Redirect target blocked'); break; }
             $ch = curl_init();
             curl_setopt_array($ch, [
-                CURLOPT_RESOLVE => [$urlHost . ':' . ($urlPort ?: ($urlScheme === 'https' ? 443 : 80)) . ':' . $urlIp],
+                CURLOPT_PROXY => '',
+                CURLOPT_NOPROXY => '*',
+                CURLOPT_RESOLVE => [$urlHost . ':' . ($urlPort ?: ($urlScheme === 'https' ? 443 : 80)) . ':' . (filter_var($urlIp, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) ? '[' . $urlIp . ']' : $urlIp)],
                 CURLOPT_URL            => $current_url,
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_HEADER         => true,
@@ -846,7 +888,8 @@ if ($command === 'dnsbl') {
                 CURLOPT_FOLLOWLOCATION => false,
                 CURLOPT_TIMEOUT        => 8,
                 CURLOPT_PROTOCOLS      => CURLPROTO_HTTP | CURLPROTO_HTTPS,
-                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_SSL_VERIFYHOST => 2,
                 CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; console/2.0)',
             ]);
             $response  = curl_exec($ch);
@@ -920,24 +963,43 @@ if ($command === 'dnsbl') {
         }
         $url = filter_var($url, FILTER_SANITIZE_URL);
 
+        $response = '';
+        $truncated = false;
         $ch = curl_init();
         curl_setopt_array($ch, [
-            CURLOPT_RESOLVE => [$host . ':443:' . $targetIp],
-            CURLOPT_URL            => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HEADER         => true,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_MAXREDIRS      => 5,
-            CURLOPT_TIMEOUT        => 10,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; console/2.0)',
+                CURLOPT_PROXY => '',
+                CURLOPT_NOPROXY => '*',
+            CURLOPT_RESOLVE => [$host . ':443:' . (filter_var($targetIp, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) ? '[' . $targetIp . ']' : $targetIp)],
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => false,
+            CURLOPT_HEADER => true,
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
+            CURLOPT_CONNECTTIMEOUT => 4,
+            CURLOPT_TIMEOUT => 10,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; console/2.0)',
+            CURLOPT_WRITEFUNCTION => static function ($curl, string $chunk) use (&$response, &$truncated): int {
+                $remaining = 262144 - strlen($response);
+                if (strlen($chunk) > $remaining) {
+                    $response .= substr($chunk, 0, $remaining);
+                    $truncated = true;
+                    return 0;
+                }
+                $response .= $chunk;
+                return strlen($chunk);
+            },
         ]);
-        $response  = curl_exec($ch);
+        $success = curl_exec($ch);
         $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $header_size = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
         curl_close($ch);
+        // cURL reports a write error when we deliberately stop at the size cap.
+        // Retain the bounded prefix for technology detection in that case.
+        if ($success === false && !$truncated) $response = '';
 
-        if (!$response) {
+        if (!$response || $header_size > strlen($response)) {
             err('tech: could not connect to ' . htmlspecialchars($host, ENT_QUOTES, 'UTF-8'));
             exit();
         }
@@ -1073,8 +1135,30 @@ if ($command === 'list') {
         err('list: usage: list proxy|http|socks4|socks5');
         exit();
     }
-    $ctx  = stream_context_create(['http' => ['timeout' => 10]]);
-    $data = @file_get_contents($sources[$type], false, $ctx);
+    $ch = curl_init($sources[$type]);
+    curl_setopt_array($ch, [
+                CURLOPT_PROXY => '',
+                CURLOPT_NOPROXY => '*',
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => false,
+        CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
+        CURLOPT_CONNECTTIMEOUT => 4,
+        CURLOPT_TIMEOUT => 10,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_RANGE => '0-65535',
+        CURLOPT_WRITEFUNCTION => static function ($curl, string $chunk) use (&$data): int {
+            if (strlen($data) + strlen($chunk) > 65536) return 0;
+            $data .= $chunk;
+            return strlen($chunk);
+        },
+    ]);
+    $data = '';
+    $fetched = curl_exec($ch);
+    $httpStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if ($fetched === false && $data === '') $data = false;
+    if ($httpStatus !== 200 && $httpStatus !== 206) $data = false;
     if ($data === false) {
         err('list: failed to fetch list');
     } else {

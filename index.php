@@ -100,6 +100,62 @@ if (!empty($_SESSION['var']) && isset($_POST['command'])) {
         exit();
     }
 
+    // IP-based limits shared across sessions (including fresh browser sessions).
+    // Use the actual TCP peer address; never trust client-supplied IP headers.
+    $clientIp = (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+    if (!is_string($_POST['command']) || strlen($_POST['command']) > 2048) {
+        http_response_code(400);
+        echo 'Invalid command.';
+        exit();
+    }
+    $cmdParts = preg_split('/\s+/', trim($_POST['command']), 2);
+    $cmdName = strtolower($cmdParts[0] ?? '');
+    $heavy = in_array($cmdName, ['nmap', 'tracert', 'whois', 'rdap', 'dnsbl', 'dnssec'], true);
+    $limitFile = sys_get_temp_dir() . '/console-rate-' . hash('sha256', $clientIp) . '.json';
+    $fp = @fopen($limitFile, 'c+');
+    if ($fp === false || !flock($fp, LOCK_EX)) {
+        if (is_resource($fp)) fclose($fp);
+        http_response_code(503);
+        echo 'Rate limiter temporarily unavailable.';
+        exit();
+    }
+    $now = time();
+    $state = json_decode(stream_get_contents($fp) ?: '', true);
+    if (!is_array($state) || ($state['until'] ?? 0) <= $now) {
+        $state = ['until' => $now + 60, 'all' => 0, 'heavy' => 0];
+    }
+    $state['all']++;
+    if ($heavy) $state['heavy']++;
+    $limited = $state['all'] > 60 || $state['heavy'] > 8;
+    rewind($fp);
+    ftruncate($fp, 0);
+    fwrite($fp, json_encode($state));
+    fflush($fp);
+    flock($fp, LOCK_UN);
+    fclose($fp);
+    // Occasionally purge stale IP counters without scanning unbounded directories.
+    if (random_int(1, 200) === 1) {
+        $dir = @opendir(sys_get_temp_dir());
+        if ($dir !== false) {
+            $scanned = 0;
+            $removed = 0;
+            while ($scanned < 2000 && $removed < 100 && ($name = readdir($dir)) !== false) {
+                $scanned++;
+                if (!preg_match('/^console-rate-[a-f0-9]{64}\\.json$/D', $name)) continue;
+                $path = sys_get_temp_dir() . '/' . $name;
+                $mtime = @filemtime($path);
+                if ($mtime !== false && $mtime < time() - 172800 && @unlink($path)) $removed++;
+            }
+            closedir($dir);
+        }
+    }
+    if ($limited) {
+        http_response_code(429);
+        header('Retry-After: ' . max(1, $state['until'] - $now));
+        echo 'Rate limit exceeded. Please wait.';
+        exit();
+    }
+
     // Rate limiting
     $_SESSION['rate_limit']['count']++;
     if ($_SESSION['rate_limit']['count'] > 60) {
@@ -107,7 +163,50 @@ if (!empty($_SESSION['var']) && isset($_POST['command'])) {
         exit();
     }
 
-    require './console.php';
+    // Process-wide concurrency cap shared by all PHP-FPM workers and sessions.
+    // Keep locks open for the entire command; OS releases them on worker exit.
+    // Lock files are permanent: never unlink them (avoids split-lock races).
+    $slotDir = sys_get_temp_dir();
+    $acquireSlot = static function (string $kind, int $capacity) use ($slotDir) {
+        for ($slot = 0; $slot < $capacity; $slot++) {
+            $path = $slotDir . '/console-exec-' . $kind . '-' . $slot . '.lock';
+            $handle = @fopen($path, 'c');
+            if ($handle === false) return false;
+            if (flock($handle, LOCK_EX | LOCK_NB)) return $handle;
+            fclose($handle);
+        }
+        return false;
+    };
+    $globalSlot = $acquireSlot('global', 6);
+    if ($globalSlot === false) {
+        http_response_code(429);
+        header('Retry-After: 3');
+        echo 'Server busy. Please retry shortly.';
+        exit();
+    }
+    $heavySlot = null;
+    if ($heavy) {
+        $heavySlot = $acquireSlot('heavy', 2);
+        if ($heavySlot === false) {
+            flock($globalSlot, LOCK_UN);
+            fclose($globalSlot);
+            http_response_code(429);
+            header('Retry-After: 3');
+            echo 'Heavy command capacity reached. Please retry shortly.';
+            exit();
+        }
+    }
+    // Explicit release also covers normal return; PHP releases locks on fatal exit.
+    try {
+        require './console.php';
+    } finally {
+        if (is_resource($heavySlot)) {
+            flock($heavySlot, LOCK_UN);
+            fclose($heavySlot);
+        }
+        flock($globalSlot, LOCK_UN);
+        fclose($globalSlot);
+    }
     exit();
 }
 
