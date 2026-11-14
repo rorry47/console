@@ -126,22 +126,6 @@ if ($command === 'whoami') {
     exit();
 }
 
-// ─── color ────────────────────────────────────────────────────────────────────
-if ($command === 'color') {
-    $allowed = ['a', 'b', 'c', 'd', 'x', 'p'];
-    $theme = strtolower($arg1);
-    if ($theme === '' || $theme === 'reset') {
-        $_SESSION['style'] = '';
-    } elseif (in_array($theme, $allowed, true)) {
-        $_SESSION['style'] = strtoupper($theme);
-    } else {
-        err('color: unknown theme. Available: a b c d x p (or empty to reset)');
-        exit();
-    }
-    header('Location: ' . CONSOLE_URL);
-    exit();
-}
-
 // ─── exit ─────────────────────────────────────────────────────────────────────
 if ($command === 'exit') {
     header('Location: ' . SITE_URL);
@@ -1149,7 +1133,6 @@ if ($command === 'help') {
         ],
         'Console' => [
             'su [name]'                       => 'Change display name (instead of IP)',
-            'color [a|b|c|d|x|p]'            => 'Switch color theme (empty to reset)',
             'clear / cls'                     => 'Clear the screen',
             'info'                            => 'About & contact',
             'exit'                            => 'Redirect to example.com',
