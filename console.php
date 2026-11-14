@@ -642,50 +642,28 @@ if ($command === 'dig') {
 
     // ── headers ───────────────────────────────────────────────────────────────
     if ($command === 'headers') {
-        if (!preg_match('#^https?://#i', $host)) {
-            $url = 'https://' . $host;
-        } else {
-            $url = $host;
-        }
-        $url = filter_var($url, FILTER_SANITIZE_URL);
-
-        $ctx = stream_context_create([
-            'http' => [
-                'timeout'         => 10,
-                'follow_location' => false,
-                'ignore_errors'   => true,
-                'method'          => 'HEAD',
-                'user_agent'      => 'Mozilla/5.0 (compatible; console/2.0)',
-            ],
-            'ssl' => [
-                'verify_peer'      => true,
-                'verify_peer_name' => true,
-            ],
+        $url = 'https://' . $host . '/';
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RESOLVE => [$host . ':443:' . $targetIp],
+            CURLOPT_NOBODY => true,
+            CURLOPT_HEADER => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_CONNECTTIMEOUT => 4,
+            CURLOPT_TIMEOUT => 10,
+            CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
         ]);
-
-        $headers = @get_headers($url, true, $ctx);
-
-        if (!$headers) {
-            // Fallback: try HTTP
-            $url_http = str_replace('https://', 'http://', $url);
-            $headers  = @get_headers($url_http, true, $ctx);
-        }
-
-        if (!$headers) {
-            err('headers: could not connect to ' . htmlspecialchars($host, ENT_QUOTES, 'UTF-8'));
+        $headers = curl_exec($ch);
+        $error = curl_error($ch);
+        curl_close($ch);
+        if ($headers === false) {
+            err('headers: ' . $error);
             exit();
         }
-
-        foreach ($headers as $key => $value) {
-            if (is_int($key)) {
-                // Status line (e.g. HTTP/1.1 200 OK)
-                echo '<b>' . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . '</b><br>';
-            } else {
-                $val = is_array($value) ? implode(', ', $value) : $value;
-                echo '<b>' . htmlspecialchars($key, ENT_QUOTES, 'UTF-8') . ':</b> '
-                   . htmlspecialchars($val, ENT_QUOTES, 'UTF-8') . '<br>';
-            }
-        }
+        echo '<pre>' . htmlspecialchars(substr($headers, 0, 16384), ENT_QUOTES, 'UTF-8') . '</pre>';
         exit();
     }
 // ── dnsbl ─────────────────────────────────────────────────────────────────
