@@ -341,6 +341,24 @@ body{height:100dvh;min-height:0;display:flex;flex-direction:column;padding-botto
 .result .token-http-warn{color:#f0bf70;font-weight:700}
 .result .token-http-error{color:var(--err);font-weight:700}
 @media(max-width:640px){.cmd-heading{align-items:flex-start}.cmd-copy{padding:5px 7px}.result{padding:11px 10px}}
+/* Terminal tabs and searchable command palette */
+#terminal-tabs{display:flex;align-items:center;gap:5px;padding:7px 10px;border-bottom:1px solid var(--border);background:var(--footer-bg);overflow-x:auto;flex-shrink:0}
+.terminal-tab{display:flex;align-items:center;gap:8px;white-space:nowrap;border:1px solid transparent;border-radius:7px;padding:7px 10px;background:transparent;color:var(--muted);font:inherit;font-size:12px;cursor:pointer}
+.terminal-tab[aria-selected="true"]{color:var(--acc);background:var(--button-hover);border-color:var(--border)}
+.tab-close{color:var(--muted);padding:0 3px;font-size:15px;cursor:pointer}
+.tab-close:hover{color:var(--err)}
+#new-tab{border:1px solid var(--border);border-radius:7px;background:var(--button-bg);color:var(--fg);padding:6px 11px;cursor:pointer}
+#command-palette{position:fixed;inset:0;z-index:1000;background:#000a;display:grid;place-items:start center;padding:12vh 15px 20px}
+#command-palette[hidden]{display:none}
+.palette-dialog{width:min(570px,100%);max-height:75vh;display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--terminal-outline);border-radius:14px;background:var(--terminal-bg);box-shadow:0 24px 80px #000b}
+#palette-search{width:100%;box-sizing:border-box;background:transparent;border:0;border-bottom:1px solid var(--border);padding:17px;color:var(--fg);font:inherit;outline:none}
+#palette-results{overflow:auto;padding:7px}
+.palette-option{display:flex;justify-content:space-between;gap:15px;width:100%;padding:11px;border:0;border-radius:8px;background:transparent;color:var(--fg);text-align:left;cursor:pointer;font:inherit}
+.palette-option[aria-selected="true"],.palette-option:hover{background:var(--button-hover)}
+.palette-option strong{color:var(--acc)}
+.palette-option small{color:var(--muted)}
+.palette-footer{border-top:1px solid var(--border);padding:9px 14px;color:var(--muted);font-size:11px}
+@media(max-width:640px){#terminal-tabs{padding:5px}.terminal-tab{padding:6px 8px}.palette-option{flex-direction:column;gap:2px}}
 /* Command completion: compact keyboard-accessible suggestions. */
 #input-wrapper{z-index:3}
 #completion-panel{position:absolute;bottom:calc(100% + 8px);left:clamp(14px,3vw,30px);right:clamp(14px,3vw,30px);max-height:min(310px,45vh);overflow:auto;border:1px solid var(--terminal-outline);border-radius:12px;background:var(--terminal-bg);box-shadow:0 16px 44px #0008;padding:6px;scrollbar-width:thin}
@@ -448,6 +466,7 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
                 <span class="terminal-identity"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="m7 10 3 2-3 2m6 0h4"/></svg><span class="title">console.nkotov.net — terminal</span><span class="network-activity" aria-hidden="true"><i></i><i></i><i></i><i></i></span></span>
                 <span class="terminal-rail"><span class="session">● <?= $displayName ?></span></span>
             </div>
+            <div id="terminal-tabs" role="tablist" aria-label="Terminal tabs"></div>
             <div id="output" role="log" aria-live="polite" aria-relevant="additions"></div>
             <div id="loader" role="status"><span>▌</span> Executing command...</div>
             <div id="input-wrapper">
@@ -456,10 +475,17 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
                 <div id="completion-panel" role="listbox" aria-label="Command suggestions" hidden></div>
                 <button class="ui-button" id="run-button" type="button">Run ↵</button>
             </div>
-            <div id="terminal-footer"><span><span class="kbd">↑</span> <span class="kbd">↓</span> history &nbsp; <span class="kbd">Enter</span> run &nbsp; <span class="kbd">Tab</span> complete</span><span><span class="kbd">Ctrl</span> + <span class="kbd">L</span> clear &nbsp; • &nbsp; First-party, privacy-friendly</span></div>
+            <div id="terminal-footer"><span><span class="kbd">↑</span> <span class="kbd">↓</span> history &nbsp; <span class="kbd">Enter</span> run &nbsp; <span class="kbd">Tab</span> complete &nbsp; <span class="kbd">Ctrl</span>+<span class="kbd">K</span> commands</span><span><span class="kbd">Ctrl</span> + <span class="kbd">L</span> clear &nbsp; • &nbsp; First-party, privacy-friendly</span></div>
         </section>
     </main>
 
+    <div id="command-palette" hidden>
+        <div class="palette-dialog" role="dialog" aria-modal="true" aria-label="Command palette">
+            <input id="palette-search" type="search" placeholder="Search commands by name or purpose..." autocomplete="off" aria-label="Search commands">
+            <div id="palette-results" role="listbox" aria-label="Matching commands"></div>
+            <div class="palette-footer">↑ ↓ navigate · Enter insert · Esc close</div>
+        </div>
+    </div>
     <script>
     const themePicker = document.getElementById('theme-picker');
     const validThemes = ['', 'A', 'B', 'C', 'D', 'X', 'P'];
@@ -481,25 +507,35 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
     let histIdx   = -1;
 
     // Per-tab history survives reload, but is not uploaded or stored permanently.
-    const transcriptKey = 'console-transcript-v1';
+    // Each tab has its own history, input draft and bounded transcript.
+    const tabsKey = 'console-tabs-v1';
+    const legacyKey = 'console-transcript-v1';
     const transcriptLimit = 30;
     const transcriptMaxChars = 120000;
+    const maxTabs = 6;
+    let tabs = [];
+    let activeTab = 0;
     let transcript = [];
-    function saveTranscript() {
-        try { sessionStorage.setItem(transcriptKey, JSON.stringify(transcript)); } catch (_) {}
+    const tabBar = document.getElementById('terminal-tabs');
+    function persistTabs() {
+        try {
+            tabs[activeTab].transcript = transcript;
+            tabs[activeTab].draft = input.value;
+            tabs[activeTab].history = history.slice(0,60);
+            sessionStorage.setItem(tabsKey,JSON.stringify({active:activeTab,tabs:tabs.map(t=>({
+                transcript:t.transcript,history:t.history,draft:t.draft
+            }))}));
+        } catch (_) {}
     }
     function clearTranscript() {
         transcript = [];
-        try { sessionStorage.removeItem(transcriptKey); } catch (_) {}
         output.replaceChildren();
+        persistTabs();
     }
-    function rememberResult(command, result, status) {
-        // Bound the size and number of entries to avoid storage and rendering issues.
-        const entry = {command:command.slice(0,2048), result:result.slice(0,transcriptMaxChars), status:status|0};
-        transcript.push(entry);
-        while (transcript.length > transcriptLimit ||
-               JSON.stringify(transcript).length > transcriptMaxChars) transcript.shift();
-        saveTranscript();
+    function rememberResult(command,result,status) {
+        transcript.push({command:command.slice(0,2048),result:result.slice(0,transcriptMaxChars),status:status|0});
+        while (transcript.length > transcriptLimit || JSON.stringify(transcript).length > transcriptMaxChars) transcript.shift();
+        persistTabs();
     }
     function makeRestoredBlock(entry) {
         const block = document.createElement('div');
@@ -539,18 +575,87 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
         block.append(result);
         return block;
     }
+    function renderTab() {
+        hideCompletions();
+        const tab = tabs[activeTab];
+        transcript = tab.transcript;
+        history.splice(0,history.length,...tab.history);
+        histIdx = -1;
+        input.value = tab.draft;
+        output.replaceChildren();
+        for (const entry of transcript) output.append(makeRestoredBlock(entry));
+        output.scrollTop = output.scrollHeight;
+        tabBar.replaceChildren();
+        tabs.forEach((t,i) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'terminal-tab';
+            button.setAttribute('role','tab');
+            button.setAttribute('aria-selected',String(i===activeTab));
+            button.textContent = 'Terminal ' + (i+1);
+            button.addEventListener('click',() => switchTab(i));
+            if (tabs.length > 1) {
+                const close = document.createElement('span');
+                close.className = 'tab-close';
+                close.textContent = '×';
+                close.title = 'Close tab';
+                close.addEventListener('click',e => { e.stopPropagation();closeTab(i); });
+                button.append(close);
+            }
+            tabBar.append(button);
+        });
+        const add = document.createElement('button');
+        add.id = 'new-tab';
+        add.type = 'button';
+        add.textContent = '+';
+        add.title = 'New terminal tab (max 6)';
+        add.disabled = tabs.length >= maxTabs;
+        add.addEventListener('click',newTab);
+        tabBar.append(add);
+    }
+    function switchTab(i) {
+        if (input.disabled || i===activeTab || !tabs[i]) return;
+        persistTabs();
+        activeTab = i;
+        renderTab();
+        persistTabs();
+        input.focus();
+    }
+    function newTab() {
+        if (input.disabled || tabs.length >= maxTabs) return;
+        persistTabs();
+        tabs.push({transcript:[],history:[],draft:''});
+        activeTab = tabs.length-1;
+        renderTab();
+        persistTabs();
+        input.focus();
+    }
+    function closeTab(i) {
+        if (input.disabled || tabs.length < 2) return;
+        persistTabs();
+        tabs.splice(i,1);
+        if (i < activeTab) activeTab--;
+        else if (i === activeTab) activeTab = Math.min(i,tabs.length-1);
+        renderTab();
+        persistTabs();
+        input.focus();
+    }
     try {
-        const stored = JSON.parse(sessionStorage.getItem(transcriptKey) || '[]');
-        if (Array.isArray(stored)) {
-            transcript = stored.filter(e => e && typeof e.command === 'string' &&
-                typeof e.result === 'string' && Number.isInteger(e.status))
-                .slice(-transcriptLimit)
-                .map(e => ({command:e.command.slice(0,2048),
-                    result:e.result.slice(0,transcriptMaxChars),status:e.status}));
-            for (const entry of transcript) output.append(makeRestoredBlock(entry));
-            output.scrollTop = output.scrollHeight;
-        }
-    } catch (_) { transcript = []; }
+        const stored = JSON.parse(sessionStorage.getItem(tabsKey) || 'null');
+        const legacy = JSON.parse(sessionStorage.getItem(legacyKey) || '[]');
+        const entries = stored && Array.isArray(stored.tabs) ? stored.tabs : [{transcript:legacy,history:[],draft:''}];
+        tabs = entries.slice(0,maxTabs).map(t => ({
+            transcript:(Array.isArray(t.transcript)?t.transcript:[]).filter(e=>e&&typeof e.command==='string'&&typeof e.result==='string'&&Number.isInteger(e.status))
+                .slice(-transcriptLimit).map(e=>({command:e.command.slice(0,2048),result:e.result.slice(0,transcriptMaxChars),status:e.status})),
+            history:(Array.isArray(t.history)?t.history:[]).filter(v=>typeof v==='string').slice(0,60),
+            draft:typeof t.draft==='string'?t.draft.slice(0,2048):''
+        }));
+        activeTab = stored && Number.isInteger(stored.active) ? Math.max(0,Math.min(stored.active,tabs.length-1)) : 0;
+    } catch (_) { tabs=[]; }
+    if (!tabs.length) tabs=[{transcript:[],history:[],draft:''}];
+    renderTab();
+    persistTabs();
+    try { sessionStorage.removeItem(legacyKey); } catch (_) {}
 
     // Local command catalog mirrors the server-side help list; no network requests.
     const commandCatalog = [
@@ -578,6 +683,72 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
         hash:['md5','sha1','sha256','sha512'],
         list:['proxy','http','socks4','socks5']
     };
+    const palette = document.getElementById('command-palette');
+    const paletteSearch = document.getElementById('palette-search');
+    const paletteResults = document.getElementById('palette-results');
+    let paletteMatches = [];
+    let paletteIndex = 0;
+    function closePalette() {
+        palette.hidden = true;
+        input.focus();
+    }
+    function selectPalette(index) {
+        const item = paletteMatches[index];
+        if (!item) return;
+        input.value = item[0] + ' ';
+        persistTabs();
+        closePalette();
+    }
+    function renderPalette() {
+        const query = paletteSearch.value.trim().toLowerCase();
+        paletteMatches = commandCatalog.filter(([name,description]) =>
+            name.includes(query) || description.toLowerCase().includes(query));
+        paletteIndex = Math.min(paletteIndex,Math.max(0,paletteMatches.length-1));
+        paletteResults.replaceChildren();
+        paletteMatches.forEach(([name,description],i) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'palette-option';
+            button.setAttribute('role','option');
+            button.setAttribute('aria-selected',String(i===paletteIndex));
+            const title = document.createElement('strong');
+            title.textContent = name;
+            const desc = document.createElement('small');
+            desc.textContent = description;
+            button.append(title,desc);
+            button.addEventListener('click',() => selectPalette(i));
+            paletteResults.append(button);
+        });
+    }
+    function openPalette() {
+        if (input.disabled) return;
+        hideCompletions();
+        palette.hidden = false;
+        paletteSearch.value = '';
+        paletteIndex = 0;
+        renderPalette();
+        paletteSearch.focus();
+    }
+    paletteSearch.addEventListener('input',() => {paletteIndex=0;renderPalette();});
+    paletteSearch.addEventListener('keydown',e => {
+        if (e.key === 'Escape') {e.preventDefault();closePalette();}
+        else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (!paletteMatches.length) return;
+            paletteIndex = (paletteIndex+(e.key==='ArrowDown'?1:-1)+paletteMatches.length)%paletteMatches.length;
+            renderPalette();
+            paletteResults.children[paletteIndex]?.scrollIntoView({block:'nearest'});
+        } else if (e.key === 'Enter') {e.preventDefault();selectPalette(paletteIndex);}
+    });
+    palette.addEventListener('click',e => {if(e.target===palette)closePalette();});
+    document.addEventListener('keydown',e => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase()==='k') {
+            e.preventDefault();
+            if (palette.hidden) openPalette(); else closePalette();
+        } else if (e.key==='Escape' && !palette.hidden) closePalette();
+    });
+    input.addEventListener('input',persistTabs);
+
     const completionPanel = document.getElementById('completion-panel');
     let completionItems = [];
     let completionIndex = 0;
@@ -708,6 +879,7 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
 
         history.unshift(cmd);
         histIdx = -1;
+        persistTabs();
         input.value = '';
 
         // Render command echo
@@ -791,6 +963,7 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
             input.disabled = false;
             input.focus();
             output.scrollTo({ top: output.scrollHeight, behavior: 'smooth' });
+            persistTabs();
         }
     }
 
@@ -837,7 +1010,8 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
     }
 
     document.getElementById('run-button').addEventListener('click', submit);
-    document.getElementById('help-button').addEventListener('click', () => { input.value = 'help'; submit(); });
+    document.getElementById('help-button').title = 'Show commands (Ctrl+K to search)';
+    document.getElementById('help-button').addEventListener('click', openPalette);
     document.getElementById('clear-button').addEventListener('click', () => { clearTranscript(); input.focus(); });
     document.getElementById('copy-button').addEventListener('click', async () => {
         const button = document.getElementById('copy-button');
