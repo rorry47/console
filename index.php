@@ -480,6 +480,78 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
     const history = [];
     let histIdx   = -1;
 
+    // Per-tab history survives reload, but is not uploaded or stored permanently.
+    const transcriptKey = 'console-transcript-v1';
+    const transcriptLimit = 30;
+    const transcriptMaxChars = 120000;
+    let transcript = [];
+    function saveTranscript() {
+        try { sessionStorage.setItem(transcriptKey, JSON.stringify(transcript)); } catch (_) {}
+    }
+    function clearTranscript() {
+        transcript = [];
+        try { sessionStorage.removeItem(transcriptKey); } catch (_) {}
+        output.replaceChildren();
+    }
+    function rememberResult(command, result, status) {
+        // Bound the size and number of entries to avoid storage and rendering issues.
+        const entry = {command:command.slice(0,2048), result:result.slice(0,transcriptMaxChars), status:status|0};
+        transcript.push(entry);
+        while (transcript.length > transcriptLimit ||
+               JSON.stringify(transcript).length > transcriptMaxChars) transcript.shift();
+        saveTranscript();
+    }
+    function makeRestoredBlock(entry) {
+        const block = document.createElement('div');
+        block.className = 'cmd-block';
+        const heading = document.createElement('div');
+        heading.className = 'cmd-heading';
+        const line = document.createElement('div');
+        line.className = 'cmd-line';
+        const prompt = document.createElement('span');
+        prompt.className = 'prompt';
+        prompt.textContent = '~ $ ';
+        const entered = document.createElement('span');
+        entered.className = 'entered-command';
+        entered.textContent = entry.command;
+        line.append(prompt,entered);
+        const actions = document.createElement('div');
+        actions.className = 'cmd-actions';
+        const copy = document.createElement('button');
+        copy.type = 'button';
+        copy.className = 'cmd-copy';
+        copy.textContent = 'Copy';
+        copy.title = 'Copy this command and its result';
+        copy.setAttribute('aria-label','Copy command and result');
+        copy.addEventListener('click',async () => {
+            try {
+                await navigator.clipboard.writeText('~ $ ' + entry.command + '\n' + entry.result);
+                copy.textContent = 'Copied ✓';
+            } catch (_) { copy.textContent = 'Unavailable'; }
+        });
+        actions.append(copy);
+        heading.append(line,actions);
+        block.append(heading);
+        const result = document.createElement('div');
+        result.className = 'result';
+        result.textContent = entry.result;
+        enhanceResult(result,entry.status);
+        block.append(result);
+        return block;
+    }
+    try {
+        const stored = JSON.parse(sessionStorage.getItem(transcriptKey) || '[]');
+        if (Array.isArray(stored)) {
+            transcript = stored.filter(e => e && typeof e.command === 'string' &&
+                typeof e.result === 'string' && Number.isInteger(e.status))
+                .slice(-transcriptLimit)
+                .map(e => ({command:e.command.slice(0,2048),
+                    result:e.result.slice(0,transcriptMaxChars),status:e.status}));
+            for (const entry of transcript) output.append(makeRestoredBlock(entry));
+            output.scrollTop = output.scrollHeight;
+        }
+    } catch (_) { transcript = []; }
+
     // Local command catalog mirrors the server-side help list; no network requests.
     const commandCatalog = [
         ['whois','Domain or IP WHOIS lookup'],['rdap','Modern domain registration lookup'],
@@ -625,7 +697,7 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
             submit();
         } else if (e.key === 'l' && e.ctrlKey) {
             e.preventDefault();
-            output.innerHTML = '';
+            clearTranscript();
         }
     });
 
@@ -680,7 +752,7 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
 
         // Client-side commands
         if (cmd.toLowerCase() === 'clear' || cmd.toLowerCase() === 'cls') {
-            output.innerHTML = '';
+            clearTranscript();
             return;
         }
 
@@ -706,11 +778,13 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
             out.innerHTML = text;
             enhanceResult(out, res.status);
             block.appendChild(out);
+            rememberResult(cmd, out.innerText, res.status);
         } catch (err) {
             const pre = document.createElement('pre');
             pre.className = 'result error-text';
             pre.textContent = 'Network error: ' + err.message;
             block.appendChild(pre);
+            rememberResult(cmd, pre.innerText, 0);
         } finally {
             loader.classList.remove('active');
             document.getElementById('terminal-shell').classList.remove('is-executing');
@@ -764,7 +838,7 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
 
     document.getElementById('run-button').addEventListener('click', submit);
     document.getElementById('help-button').addEventListener('click', () => { input.value = 'help'; submit(); });
-    document.getElementById('clear-button').addEventListener('click', () => { output.replaceChildren(); input.focus(); });
+    document.getElementById('clear-button').addEventListener('click', () => { clearTranscript(); input.focus(); });
     document.getElementById('copy-button').addEventListener('click', async () => {
         const button = document.getElementById('copy-button');
         try {
