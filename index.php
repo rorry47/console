@@ -3,13 +3,17 @@
 //  CONFIG
 // ════════════════════════════════════════════════════════════════
 
-define('RECAPTCHA_ENABLED', true);          // true or false
-
-define('RECAPTCHA_SITE_KEY',   'XXXXXXXXXXXXXXXXXXXXXXXXX');  // (site key)
-define('RECAPTCHA_SECRET_KEY', 'XXXXXXXXXXXXXXXXXXXXXXXX'); // (secret key)
-
-// ════════════════════════════════════════════════════════════════
+// Local, session-bound arithmetic CAPTCHA; no external services or secrets.
 session_start();
+ini_set('display_errors', '0');
+header('X-Content-Type-Options: nosniff');
+header('Referrer-Policy: no-referrer');
+header('X-Frame-Options: DENY');
+header('Cache-Control: no-store');
+if (!isset($_SESSION['captcha']) || time() > ($_SESSION['captcha']['expires'] ?? 0)) {
+    $_SESSION['captcha'] = ['a' => random_int(2, 19), 'b' => random_int(2, 19), 'expires' => time() + 300, 'attempts' => 0];
+}
+
 
 // CSRF token generation
 if (empty($_SESSION['csrf_token'])) {
@@ -20,12 +24,13 @@ if (empty($_SESSION['csrf_token'])) {
 if (!isset($_SESSION['rate_limit'])) {
     $_SESSION['rate_limit'] = ['count' => 0, 'reset' => time() + 60];
 }
-if (time() > $_SESSION['rate_limit']['reset']) {
+if (time() >= $_SESSION['rate_limit']['reset']) {
     $_SESSION['rate_limit'] = ['count' => 0, 'reset' => time() + 60];
 }
 
 // ── AJAX command handler: respond with plain output only, no HTML ────────────
 if (!empty($_SESSION['var']) && isset($_POST['command'])) {
+    define('CONSOLE_INTERNAL_DISPATCH', true);
     header('Content-Type: text/html; charset=UTF-8');
 
     // CSRF check
@@ -254,56 +259,43 @@ $displayName = getDisplayName();
 <body class="<?= $theme ? 'theme-' . htmlspecialchars($theme, ENT_QUOTES, 'UTF-8') : '' ?>">
 
 <?php
-// Если капча выключена — пускаем сразу без проверки
-if (!RECAPTCHA_ENABLED && empty($_SESSION['var'])) {
-    $_SESSION['var'] = '1';
-    header('Location: ' . (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']);
-    exit();
-}
 ?>
 
 <?php if (empty($_SESSION['var'])): ?>
-    <!-- reCAPTCHA gate -->
+    <!-- First-party CAPTCHA, generated and verified on this server. -->
     <div id="captcha-gate">
-        <form method="post">
+        <form method="post" autocomplete="off">
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8') ?>">
-            <div class="g-recaptcha" data-theme="dark" data-sitekey="<?= htmlspecialchars(RECAPTCHA_SITE_KEY, ENT_QUOTES, 'UTF-8') ?>"></div>
-            <br>
-            <button type="submit" name="ok" class="btn">OK</button>
+            <label for="captcha-answer">Security check: <?= (int)$_SESSION['captcha']['a'] ?> + <?= (int)$_SESSION['captcha']['b'] ?> = ?</label>
+            <input id="captcha-answer" name="captcha_answer" type="number" inputmode="numeric" required min="0" max="100" class="btn" style="width:100px" autofocus>
+            <button type="submit" name="ok" value="1" class="btn">Continue</button>
         </form>
         <?php
         if (isset($_POST['ok'])) {
-            // Validate CSRF
-            if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'] ?? '')) {
-                echo '<p class="error-text">CSRF validation failed.</p>';
-                exit();
-            }
-            if (empty($_POST['g-recaptcha-response'])) {
-                echo '<p class="error-text">reCAPTCHA verification failed, please try again.</p>';
+            if (!hash_equals($_SESSION['csrf_token'], (string)($_POST['csrf_token'] ?? ''))) {
+                http_response_code(403);
+                echo '<p class="error-text">Invalid request.</p>';
             } else {
-                $ch = curl_init();
-                curl_setopt_array($ch, [
-                    CURLOPT_URL            => 'https://www.google.com/recaptcha/api/siteverify',
-                    CURLOPT_POST           => true,
-                    CURLOPT_POSTFIELDS     => http_build_query(['secret' => RECAPTCHA_SECRET_KEY, 'response' => $_POST['g-recaptcha-response'], 'remoteip' => $_SERVER['REMOTE_ADDR']]),
-                    CURLOPT_RETURNTRANSFER => true,
-                    CURLOPT_TIMEOUT        => 10,
-                    CURLOPT_SSL_VERIFYPEER => true,
-                ]);
-                $response = curl_exec($ch);
-                curl_close($ch);
-                $result = json_decode($response, true);
-                if (!empty($result['success'])) {
+                $c = $_SESSION['captcha'];
+                $valid = $c['attempts'] < 5 && time() <= $c['expires']
+                    && filter_var($_POST['captcha_answer'] ?? null, FILTER_VALIDATE_INT) !== false
+                    && (int)$_POST['captcha_answer'] === $c['a'] + $c['b'];
+                $_SESSION['captcha']['attempts']++;
+                if ($valid) {
+                    session_regenerate_id(true);
                     $_SESSION['var'] = '1';
-                    header('Location: ' . (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']);
+                    unset($_SESSION['captcha']);
+                    header('Location: ./', true, 303);
                     exit();
                 }
-                echo '<p class="error-text">reCAPTCHA verification failed, please try again.</p>';
+                if ($_SESSION['captcha']['attempts'] >= 5 || time() > $c['expires']) {
+                    $_SESSION['captcha'] = ['a' => random_int(2, 19), 'b' => random_int(2, 19), 'expires' => time() + 300, 'attempts' => 0];
+                }
+                echo '<p class="error-text">Incorrect answer. Refresh the page for a new challenge.</p>';
             }
         }
         ?>
     </div>
-    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 
 <?php else: ?>
 

@@ -22,17 +22,18 @@ if (!function_exists('str_ends_with')) {
  * Security: all inputs sanitized, shell injection prevented via escapeshellarg()
  */
 
-if (!isset($_POST['command'])) {
+if (!defined('CONSOLE_INTERNAL_DISPATCH') || CONSOLE_INTERNAL_DISPATCH !== true || !isset($_POST['command'])) {
     exit();
 }
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 const VERSION       = '2.0';
-const MAX_INPUT_LEN = 128;
+const MAX_INPUT_LEN = 253;
 const CONSOLE_URL   = 'https://example.com/';
 const SITE_URL      = 'https://example.com/';
 
 // ─── Parse input ─────────────────────────────────────────────────────────────
+if (!is_string($_POST['command']) || strlen($_POST['command']) > 2048) { http_response_code(400); exit('Invalid command length'); }
 $raw     = trim($_POST['command']);
 $tokens  = preg_split('/\s+/', $raw, 5);
 $command = strtolower($tokens[0] ?? '');
@@ -251,6 +252,7 @@ if (in_array($command, $net_cmds, true)) {
     }
 
     $host = sanitizeHost($arg1);
+    if ($host !== $arg1 || $host === '') { err('Invalid host format'); exit(); }
 
     if (isBlocked($host)) {
         err("$command: host not allowed");
@@ -262,9 +264,12 @@ if (in_array($command, $net_cmds, true)) {
         exit();
     }
 
+    // Resolve once and pin IP for active network tools to avoid DNS rebinding.
+    $targetIp = filter_var($host, FILTER_VALIDATE_IP) ? $host : gethostbyname($host);
+    if (isBlocked($targetIp)) { err('Host not allowed'); exit(); }
     // ── ping ──────────────────────────────────────────────────────────────────
     if ($command === 'ping') {
-        exec('ping -c 4 -W 3 ' . escapeshellarg($host) . ' 2>&1', $out);
+        exec('ping -c 4 -W 3 ' . escapeshellarg($targetIp) . ' 2>&1', $out);
         foreach ($out as $line) {
             echo htmlspecialchars($line, ENT_QUOTES, 'UTF-8') . '<br>';
         }
@@ -273,7 +278,7 @@ if (in_array($command, $net_cmds, true)) {
 
     // ── tracert ───────────────────────────────────────────────────────────────
     if ($command === 'tracert') {
-        exec('traceroute -m 20 -w 3 ' . escapeshellarg($host) . ' 2>&1', $out);
+        exec('traceroute -m 20 -w 3 ' . escapeshellarg($targetIp) . ' 2>&1', $out);
         foreach ($out as $line) {
             echo htmlspecialchars($line, ENT_QUOTES, 'UTF-8') . '<br>';
         }
@@ -416,7 +421,7 @@ if ($command === 'dig') {
 
     // ── nmap ──────────────────────────────────────────────────────────────────
     if ($command === 'nmap') {
-        exec('nmap -F --open ' . escapeshellarg($host) . ' 2>&1', $out);
+        exec('nmap -F --open ' . escapeshellarg($targetIp) . ' 2>&1', $out);
         foreach ($out as $line) {
             if (stripos($line, 'Nmap scan report') !== false) continue;
             echo htmlspecialchars($line, ENT_QUOTES, 'UTF-8') . '<br>';
@@ -442,7 +447,7 @@ if ($command === 'dig') {
 
     // ── httping ───────────────────────────────────────────────────────────────
     if ($command === 'httping') {
-        exec('httping -c 4 -g ' . escapeshellarg('https://' . $host) . ' 2>&1', $out);
+        exec('httping -c 4 -g ' . escapeshellarg('https://' . $targetIp) . ' 2>&1', $out);
         foreach ($out as $line) {
             echo htmlspecialchars($line, ENT_QUOTES, 'UTF-8') . '<br>';
         }
@@ -474,7 +479,7 @@ if ($command === 'dig') {
         }
         $errno  = 0;
         $errstr = '';
-        $conn   = @fsockopen($host, $port, $errno, $errstr, 5);
+        $conn   = @fsockopen($targetIp, $port, $errno, $errstr, 5);
         if ($conn) {
             fclose($conn);
             ok("port $port on $host is OPEN");
@@ -517,9 +522,10 @@ if ($command === 'dig') {
                 CURLOPT_URL            => $rdap_url,
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_TIMEOUT        => 10,
-                CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_MAXREDIRS      => 5,
-                CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_PROTOCOLS      => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+                CURLOPT_FOLLOWLOCATION => false,
+                CURLOPT_MAXREDIRS      => 0,
+                CURLOPT_SSL_VERIFYPEER => true,
                 CURLOPT_HTTPHEADER     => [
                     'Accept: application/rdap+json, application/json',
                     'User-Agent: console/2.0',
@@ -645,8 +651,8 @@ if ($command === 'dig') {
                 'user_agent'      => 'Mozilla/5.0 (compatible; console/2.0)',
             ],
             'ssl' => [
-                'verify_peer'      => false,
-                'verify_peer_name' => false,
+                'verify_peer'      => true,
+                'verify_peer_name' => true,
             ],
         ]);
 
@@ -695,7 +701,6 @@ if ($command === 'dnsbl') {
         'spam.dnsbl.anonmails.de' => 'ANONMAILS',
         'spam.abuse.ch'                 => 'Abuse.ch',
         'dnsbl.zapbl.net'               => 'ZapBL',
-        'psbl.surriel.com'              => 'PSBL',
         'spam.rats.dnsbl.net.au'        => 'RATS-Spam',
         'dyna.rats.dnsbl.net.au'        => 'RATS-Dyna',
         'noptr.rats.dnsbl.net.au'       => 'RATS-NoPtr',
@@ -809,7 +814,7 @@ if ($command === 'dnsbl') {
         // Verdict
         echo '<br>';
         if ($has_dnskey && $has_ds && $has_rrsig) {
-            echo '<span style="color:#52e052"><b>✓ DNSSEC is enabled and chain of trust is intact</b></span><br>';
+            echo '<span style="color:#52e052"><b>✓ DNSSEC records detected (not cryptographically validated)</b></span><br>';
         } elseif ($has_dnskey || $has_rrsig) {
             echo '<span style="color:#e8a020"><b>⚠ DNSSEC partially configured (chain may be incomplete)</b></span><br>';
         } else {
@@ -841,14 +846,22 @@ if ($command === 'dnsbl') {
             }
             $seen[] = $current_url;
 
+            $urlHost = parse_url($current_url, PHP_URL_HOST);
+            $urlPort = parse_url($current_url, PHP_URL_PORT);
+            $urlScheme = strtolower((string)parse_url($current_url, PHP_URL_SCHEME));
+            if (!$urlHost || !in_array($urlScheme, ['http','https'], true) || ($urlPort !== null && !in_array($urlPort, [80,443], true)) || isBlocked($urlHost)) { err('Redirect target blocked'); break; }
+            $urlIp = filter_var($urlHost, FILTER_VALIDATE_IP) ? $urlHost : gethostbyname($urlHost);
+            if (isBlocked($urlIp)) { err('Redirect target blocked'); break; }
             $ch = curl_init();
             curl_setopt_array($ch, [
+                CURLOPT_RESOLVE => [$urlHost . ':' . ($urlPort ?: ($urlScheme === 'https' ? 443 : 80)) . ':' . $urlIp],
                 CURLOPT_URL            => $current_url,
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_HEADER         => true,
                 CURLOPT_NOBODY         => true,
                 CURLOPT_FOLLOWLOCATION => false,
                 CURLOPT_TIMEOUT        => 8,
+                CURLOPT_PROTOCOLS      => CURLPROTO_HTTP | CURLPROTO_HTTPS,
                 CURLOPT_SSL_VERIFYPEER => false,
                 CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; console/2.0)',
             ]);
@@ -925,6 +938,7 @@ if ($command === 'dnsbl') {
 
         $ch = curl_init();
         curl_setopt_array($ch, [
+            CURLOPT_RESOLVE => [$host . ':443:' . $targetIp],
             CURLOPT_URL            => $url,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HEADER         => true,
