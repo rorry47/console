@@ -254,7 +254,7 @@ body{height:100dvh;min-height:0;display:flex;flex-direction:column;padding-botto
             <div class="top-actions">
                 <div class="theme-control"><span class="theme-control-icon"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18h1.5a2.5 2.5 0 0 0 2.1-4 1.5 1.5 0 0 1 1.3-2.3H19a2 2 0 0 0 2-2 9 9 0 0 0-9-9Z"/><circle cx="7.5" cy="11" r=".7" fill="currentColor" stroke="none"/><circle cx="10" cy="7.5" r=".7" fill="currentColor" stroke="none"/><circle cx="15" cy="8" r=".7" fill="currentColor" stroke="none"/></svg></span><label for="theme-picker" class="theme-label">Theme</label><div class="theme-select-wrap"><select id="theme-picker" aria-label="Console color theme"><option value="">Midnight</option><option value="A">Matrix</option><option value="B">Light</option><option value="C">Slate</option><option value="D">Rose</option><option value="X">Violet</option><option value="P">Ocean</option></select><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></div></div>
                 <span class="status">Session active</span>
-                <div class="action-group"><button class="ui-button" id="help-button" type="button" title="Show commands"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.7 2.7 0 1 1 4.7 1.8c-1.2 1.2-2.2 1.4-2.2 3.2"/><path d="M12 17.5h.01"/></svg><span>Help</span></button><button class="ui-button" id="copy-button" type="button" title="Copy terminal output"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg><span class="button-label">Copy output</span></button><button class="ui-button" id="clear-button" type="button" title="Clear terminal"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span>Clear</span></button></div></div>
+                <div class="action-group"><button class="ui-button" id="help-button" type="button" title="Show commands"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.7 2.7 0 1 1 4.7 1.8c-1.2 1.2-2.2 1.4-2.2 3.2"/><path d="M12 17.5h.01"/></svg><span>Help</span></button><button class="ui-button" id="copy-button" type="button" title="Copy terminal output"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg><span class="button-label">Copy output</span></button><button class="ui-button" id="screenshot-button" type="button" title="Save terminal screenshot as PNG"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3"/><path d="M8 6l1.5-2h5L16 6"/></svg><span class="button-label">Screenshot</span></button><button class="ui-button" id="clear-button" type="button" title="Clear terminal"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span>Clear</span></button></div></div>
         </div>
         <section id="terminal-shell" aria-label="Interactive network console">
             <div id="header-bar">
@@ -397,6 +397,69 @@ body{height:100dvh;min-height:0;display:flex;flex-direction:column;padding-botto
             input.focus();
         } catch (err) {
             button.textContent = 'Copy unavailable';
+        }
+    });
+    // Capture the actual rendered terminal via the browser's screen-sharing API.
+    // No image is uploaded; the captured frame is cropped and saved locally.
+    document.getElementById('screenshot-button').addEventListener('click', async () => {
+        const button = document.getElementById('screenshot-button');
+        const originalLabel = button.querySelector('.button-label').textContent;
+        let stream;
+        try {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+                throw new Error('Screen capture is not supported by this browser');
+            }
+            stream = await navigator.mediaDevices.getDisplayMedia({
+                video: { displaySurface: 'browser' },
+                audio: false,
+                preferCurrentTab: true,
+                selfBrowserSurface: 'include'
+            });
+            const track = stream.getVideoTracks()[0];
+            const settings = track.getSettings();
+            if (settings.displaySurface && settings.displaySurface !== 'browser') {
+                throw new Error('Please select this browser tab, not a window or screen');
+            }
+            const video = document.createElement('video');
+            video.srcObject = stream;
+            video.muted = true;
+            video.playsInline = true;
+            await video.play();
+            if (!video.videoWidth || !video.videoHeight) {
+                throw new Error('Unable to capture the browser tab');
+            }
+            const terminal = document.getElementById('terminal-shell');
+            const rect = terminal.getBoundingClientRect();
+            // Tab capture maps to the visible viewport; crop only the terminal.
+            const sx = video.videoWidth / window.innerWidth;
+            const sy = video.videoHeight / window.innerHeight;
+            const left = Math.max(0, Math.round(rect.left * sx));
+            const top = Math.max(0, Math.round(rect.top * sy));
+            const width = Math.min(video.videoWidth - left, Math.round(rect.width * sx));
+            const height = Math.min(video.videoHeight - top, Math.round(rect.height * sy));
+            if (width <= 0 || height <= 0) throw new Error('Terminal is outside the captured area');
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            canvas.getContext('2d').drawImage(video, left, top, width, height, 0, 0, width, height);
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+            if (!blob) throw new Error('Could not encode PNG');
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'console-' + new Date().toISOString().replace(/[:.]/g, '-') + '.png';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            button.querySelector('.button-label').textContent = 'Saved';
+        } catch (err) {
+            if (err.name !== 'NotAllowedError') {
+                alert('Screenshot: ' + err.message);
+            }
+        } finally {
+            if (stream) stream.getTracks().forEach(track => track.stop());
+            button.querySelector('.button-label').textContent = originalLabel;
         }
     });
     document.getElementById('terminal-shell').addEventListener('click', e => {
