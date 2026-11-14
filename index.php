@@ -325,6 +325,22 @@ body{height:100dvh;min-height:0;display:flex;flex-direction:column;padding-botto
 .status{margin-right:0;white-space:nowrap}
 @media(max-width:900px){#workspace-top{align-items:flex-start}.top-actions{gap:10px}.action-group{padding-left:0;border-left:0}.brand-subtitle{font-size:11px}}
 @media(max-width:640px){#workspace-top{gap:14px}.top-actions{width:100%;justify-content:space-between;gap:8px}.theme-control{gap:7px}.theme-label{display:none}.theme-select-wrap{min-width:120px}.action-group{gap:6px}.ui-button{min-height:39px;padding:8px 10px;gap:6px}.action-group .button-label{display:none}.status{display:none}}
+/* Readable result cards and scoped actions. */
+.cmd-block{padding:0 0 19px;margin-bottom:20px}
+.cmd-heading{display:flex;align-items:center;gap:10px;min-width:0}
+.cmd-heading .cmd-line{flex:1;min-width:0}
+.cmd-actions{display:flex;gap:6px;flex:0 0 auto}
+.cmd-copy{font:600 11px/1.4 var(--font);color:var(--muted);background:var(--button-bg);border:1px solid var(--border);border-radius:6px;padding:5px 9px;transition:color .2s,border-color .2s,background .2s}
+.cmd-copy:hover{color:var(--acc);border-color:var(--acc);background:var(--button-hover)}
+.result{padding:14px 15px;margin-top:12px;border:1px solid var(--line);border-left:3px solid var(--border);border-radius:9px;background:var(--page-glow2)}
+.cmd-block:hover .result{border-left-color:var(--acc)}
+.result.is-error{border-left-color:var(--err)!important}
+.result.is-success{border-left-color:var(--ok)!important}
+.result .token-ip,.result .token-domain{color:var(--acc);font-weight:600}
+.result .token-http-ok{color:var(--ok);font-weight:700}
+.result .token-http-warn{color:#f0bf70;font-weight:700}
+.result .token-http-error{color:var(--err);font-weight:700}
+@media(max-width:640px){.cmd-heading{align-items:flex-start}.cmd-copy{padding:5px 7px}.result{padding:11px 10px}}
 /* Command completion: compact keyboard-accessible suggestions. */
 #input-wrapper{z-index:3}
 #completion-panel{position:absolute;bottom:calc(100% + 8px);left:clamp(14px,3vw,30px);right:clamp(14px,3vw,30px);max-height:min(310px,45vh);overflow:auto;border:1px solid var(--terminal-outline);border-radius:12px;background:var(--terminal-bg);box-shadow:0 16px 44px #0008;padding:6px;scrollbar-width:thin}
@@ -634,7 +650,31 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
         entered.className = 'entered-command';
         entered.textContent = cmd;
         line.append(prompt, entered);
-        block.appendChild(line);
+        const heading = document.createElement('div');
+        heading.className = 'cmd-heading';
+        heading.appendChild(line);
+        const actions = document.createElement('div');
+        actions.className = 'cmd-actions';
+        const copy = document.createElement('button');
+        copy.type = 'button';
+        copy.className = 'cmd-copy';
+        copy.textContent = 'Copy';
+        copy.title = 'Copy this command and its result';
+        copy.setAttribute('aria-label', 'Copy command and result');
+        copy.addEventListener('click', async () => {
+            const result = block.querySelector('.result');
+            const content = '~ $ ' + cmd + (result ? '\n' + result.innerText : '');
+            try {
+                await navigator.clipboard.writeText(content);
+                copy.textContent = 'Copied ✓';
+            } catch (_) {
+                copy.textContent = 'Unavailable';
+            }
+            // Restore on the next user interaction; no timer or layout changes.
+        });
+        actions.appendChild(copy);
+        heading.appendChild(actions);
+        block.appendChild(heading);
         output.appendChild(block);
         output.scrollTop = output.scrollHeight;
 
@@ -664,6 +704,7 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
             const out = document.createElement('div');
             out.className = 'result';
             out.innerHTML = text;
+            enhanceResult(out, res.status);
             block.appendChild(out);
         } catch (err) {
             const pre = document.createElement('pre');
@@ -676,6 +717,44 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
             input.disabled = false;
             input.focus();
             output.scrollTo({ top: output.scrollHeight, behavior: 'smooth' });
+        }
+    }
+
+    // Decorate text nodes only. Preserve server-rendered links and markup.
+    function enhanceResult(root, status) {
+        if (status >= 400) root.classList.add('is-error');
+        // Limit DOM processing for unusually large outputs.
+        if ((root.textContent || '').length > 30000) return;
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+            acceptNode(node) {
+                if (!node.parentElement || node.parentElement.closest('a,script,style,.token-ip,.token-domain')) return NodeFilter.FILTER_REJECT;
+                return NodeFilter.FILTER_ACCEPT;
+            }
+        });
+        const nodes = [];
+        while (walker.nextNode() && nodes.length < 400) nodes.push(walker.currentNode);
+        const pattern = /\\b(?:HTTP\\/\\d(?:\\.\\d)?\\s+)?([1-5]\\d{2})\\b|\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b|\\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,24}\\b/gi;
+        for (const node of nodes) {
+            const text = node.nodeValue;
+            pattern.lastIndex = 0;
+            if (!pattern.test(text)) continue;
+            pattern.lastIndex = 0;
+            const fragment = document.createDocumentFragment();
+            let last = 0;
+            for (const match of text.matchAll(pattern)) {
+                const value = match[0];
+                const index = match.index;
+                if (index > last) fragment.append(document.createTextNode(text.slice(last,index)));
+                const token = document.createElement('span');
+                const code = match[1] ? Number(match[1]) : 0;
+                if (code) token.className = code < 300 ? 'token-http-ok' : code < 400 ? 'token-http-warn' : 'token-http-error';
+                else token.className = /^\\d/.test(value) ? 'token-ip' : 'token-domain';
+                token.textContent = value;
+                fragment.append(token);
+                last = index + value.length;
+            }
+            fragment.append(document.createTextNode(text.slice(last)));
+            node.replaceWith(fragment);
         }
     }
 
