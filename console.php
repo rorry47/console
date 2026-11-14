@@ -521,23 +521,31 @@ if ($command === 'dig') {
 
         $json = null;
         foreach ($urls as $rdap_url) {
+            $result = '';
             $ch = curl_init();
             curl_setopt_array($ch, [
-                CURLOPT_URL            => $rdap_url,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT        => 10,
-            CURLOPT_PROTOCOLS      => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+                CURLOPT_URL => $rdap_url,
+                CURLOPT_RETURNTRANSFER => false,
+                CURLOPT_CONNECTTIMEOUT => 4,
+                CURLOPT_TIMEOUT => 10,
+                CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
                 CURLOPT_FOLLOWLOCATION => false,
-                CURLOPT_MAXREDIRS      => 0,
                 CURLOPT_SSL_VERIFYPEER => true,
-                CURLOPT_HTTPHEADER     => [
+                CURLOPT_SSL_VERIFYHOST => 2,
+                CURLOPT_HTTPHEADER => [
                     'Accept: application/rdap+json, application/json',
                     'User-Agent: console/2.0',
                 ],
+                CURLOPT_WRITEFUNCTION => static function ($curl, string $chunk) use (&$result): int {
+                    if (strlen($result) + strlen($chunk) > 262144) return 0;
+                    $result .= $chunk;
+                    return strlen($chunk);
+                },
             ]);
-            $result = curl_exec($ch);
+            $success = curl_exec($ch);
             $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
+            if ($success === false) $result = '';
 
             if ($result && $http_code === 200 && str_contains($result, 'ldhName')) {
                 $json = $result;
@@ -925,23 +933,31 @@ if ($command === 'dnsbl') {
         }
         $url = filter_var($url, FILTER_SANITIZE_URL);
 
+        $response = '';
         $ch = curl_init();
         curl_setopt_array($ch, [
-            CURLOPT_RESOLVE => [$host . ':443:' . $targetIp],
-            CURLOPT_URL            => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HEADER         => true,
+            CURLOPT_RESOLVE => [$host . ':443:' . (filter_var($targetIp, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) ? '[' . $targetIp . ']' : $targetIp)],
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => false,
+            CURLOPT_HEADER => true,
             CURLOPT_FOLLOWLOCATION => false,
-            CURLOPT_MAXREDIRS      => 0,
-            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
+            CURLOPT_CONNECTTIMEOUT => 4,
+            CURLOPT_TIMEOUT => 10,
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
-            CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; console/2.0)',
+            CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; console/2.0)',
+            CURLOPT_WRITEFUNCTION => static function ($curl, string $chunk) use (&$response): int {
+                if (strlen($response) + strlen($chunk) > 262144) return 0;
+                $response .= $chunk;
+                return strlen($chunk);
+            },
         ]);
-        $response  = curl_exec($ch);
+        $success = curl_exec($ch);
         $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $header_size = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
         curl_close($ch);
+        if ($success === false) $response = '';
 
         if (!$response) {
             err('tech: could not connect to ' . htmlspecialchars($host, ENT_QUOTES, 'UTF-8'));
