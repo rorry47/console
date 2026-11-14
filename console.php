@@ -82,6 +82,9 @@ function isPublicIp(string $ip): bool {
     if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
         // Reject IPv4 mapped IPv6 and IPv6 addresses outside global unicast.
         if (stripos($ip, '::ffff:') !== false) return false;
+        // Detect IPv4-mapped addresses even when written in full IPv6 form.
+        $packed = inet_pton($ip);
+        if ($packed !== false && substr($packed, 0, 12) === str_repeat("\x00", 10) . "\xff\xff") return false;
         $binary = inet_pton($ip);
         if ($binary === false || (ord($binary[0]) & 0xe0) !== 0x20) return false;
     }
@@ -657,7 +660,7 @@ if ($command === 'dig') {
             err('headers: ' . $error);
             exit();
         }
-        echo '<pre>' . htmlspecialchars(substr($headers, 0, 16384), ENT_QUOTES, 'UTF-8') . '</pre>';
+        echo nl2br(htmlspecialchars(substr($headers, 0, 16384), ENT_QUOTES, 'UTF-8'), false);
         exit();
     }
 // ── dnsbl ─────────────────────────────────────────────────────────────────
