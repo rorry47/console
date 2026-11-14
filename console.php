@@ -354,11 +354,35 @@ if (in_array($command, $net_cmds, true)) {
             'https://rdap.org/domain/' . urlencode($host),          // universal fallback
         ];
         $json = null;
-        $ctx  = stream_context_create(['http' => ['timeout' => 8, 'ignore_errors' => true]]);
         foreach ($rdap_servers as $rdap_url) {
-            $json = @file_get_contents($rdap_url, false, $ctx);
-            if ($json && str_contains($json, 'ldhName')) break;
-            $json = null;
+            $result = '';
+            $ch = curl_init($rdap_url);
+            curl_setopt_array($ch, [
+                CURLOPT_PROXY => '',
+                CURLOPT_NOPROXY => '*',
+                CURLOPT_RETURNTRANSFER => false,
+                CURLOPT_CONNECTTIMEOUT => 4,
+                CURLOPT_TIMEOUT => 8,
+                CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
+                CURLOPT_FOLLOWLOCATION => false,
+                CURLOPT_PROXY => '',
+                CURLOPT_NOPROXY => '*',
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_SSL_VERIFYHOST => 2,
+                CURLOPT_HTTPHEADER => ['Accept: application/rdap+json, application/json'],
+                CURLOPT_WRITEFUNCTION => static function ($curl, string $chunk) use (&$result): int {
+                    if (strlen($result) + strlen($chunk) > 262144) return 0;
+                    $result .= $chunk;
+                    return strlen($chunk);
+                },
+            ]);
+            $success = curl_exec($ch);
+            $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            if ($success !== false && $status === 200 && str_contains($result, 'ldhName')) {
+                $json = $result;
+                break;
+            }
         }
         if ($json) {
             $data = json_decode($json, true);
@@ -442,7 +466,7 @@ if ($command === 'dig') {
             $url = $host;
         }
         $url = filter_var($url, FILTER_SANITIZE_URL);
-        boundedExec('curl -Is --max-time 10 --max-redirs 0 --resolve ' . escapeshellarg($host . ':443:' . $targetIp) . ' ' . escapeshellarg($url) . ' 2>&1 | head -40', $out);
+        boundedExec('curl -q --noproxy '*' -Is --max-time 10 --max-redirs 0 --resolve ' . escapeshellarg($host . ':443:' . $targetIp) . ' ' . escapeshellarg($url) . ' 2>&1 | head -40', $out);
         foreach ($out as $line) {
             echo htmlspecialchars($line, ENT_QUOTES, 'UTF-8') . '<br>';
         }
@@ -524,6 +548,8 @@ if ($command === 'dig') {
             $result = '';
             $ch = curl_init();
             curl_setopt_array($ch, [
+                CURLOPT_PROXY => '',
+                CURLOPT_NOPROXY => '*',
                 CURLOPT_URL => $rdap_url,
                 CURLOPT_RETURNTRANSFER => false,
                 CURLOPT_CONNECTTIMEOUT => 4,
@@ -609,6 +635,8 @@ if ($command === 'dig') {
         $ip = $targetIp;
         $ch = curl_init('http://ip-api.com/json/' . rawurlencode($ip) . '?fields=status,message,country,countryCode,regionName,city,zip,lat,lon,timezone,isp,org,as,query');
         curl_setopt_array($ch, [
+                CURLOPT_PROXY => '',
+                CURLOPT_NOPROXY => '*',
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_PROTOCOLS => CURLPROTO_HTTP,
@@ -656,6 +684,8 @@ if ($command === 'dig') {
         $url = 'https://' . $host . '/';
         $ch = curl_init($url);
         curl_setopt_array($ch, [
+                CURLOPT_PROXY => '',
+                CURLOPT_NOPROXY => '*',
             CURLOPT_RESOLVE => [$host . ':443:' . (filter_var($targetIp, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) ? '[' . $targetIp . ']' : $targetIp)],
             CURLOPT_NOBODY => true,
             CURLOPT_HEADER => true,
@@ -850,6 +880,8 @@ if ($command === 'dnsbl') {
             if ($urlIp === null) { err('Redirect target blocked'); break; }
             $ch = curl_init();
             curl_setopt_array($ch, [
+                CURLOPT_PROXY => '',
+                CURLOPT_NOPROXY => '*',
                 CURLOPT_RESOLVE => [$urlHost . ':' . ($urlPort ?: ($urlScheme === 'https' ? 443 : 80)) . ':' . (filter_var($urlIp, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) ? '[' . $urlIp . ']' : $urlIp)],
                 CURLOPT_URL            => $current_url,
                 CURLOPT_RETURNTRANSFER => true,
@@ -937,6 +969,8 @@ if ($command === 'dnsbl') {
         $truncated = false;
         $ch = curl_init();
         curl_setopt_array($ch, [
+                CURLOPT_PROXY => '',
+                CURLOPT_NOPROXY => '*',
             CURLOPT_RESOLVE => [$host . ':443:' . (filter_var($targetIp, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) ? '[' . $targetIp . ']' : $targetIp)],
             CURLOPT_URL => $url,
             CURLOPT_RETURNTRANSFER => false,
@@ -1105,6 +1139,8 @@ if ($command === 'list') {
     }
     $ch = curl_init($sources[$type]);
     curl_setopt_array($ch, [
+                CURLOPT_PROXY => '',
+                CURLOPT_NOPROXY => '*',
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_FOLLOWLOCATION => false,
         CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
