@@ -341,6 +341,12 @@ body{height:100dvh;min-height:0;display:flex;flex-direction:column;padding-botto
 .result .token-http-warn{color:#f0bf70;font-weight:700}
 .result .token-http-error{color:var(--err);font-weight:700}
 @media(max-width:640px){.cmd-heading{align-items:flex-start}.cmd-copy{padding:5px 7px}.result{padding:11px 10px}}
+/* Export controls share the existing action-bar visual language. */
+.export-controls{display:flex;align-items:center;gap:5px}
+#export-format{height:36px;max-width:74px;border:1px solid var(--border);border-radius:7px;background:var(--button-bg);color:var(--fg);font:inherit;font-size:11px;padding:0 5px}
+#export-format:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(max-width:640px){#export-format{height:39px;max-width:65px}}
 /* Terminal tabs and searchable command palette */
 #terminal-tabs{display:flex;align-items:center;gap:5px;padding:7px 10px;border-bottom:1px solid var(--border);background:var(--footer-bg);overflow-x:auto;flex-shrink:0}
 .terminal-tab{display:flex;align-items:center;gap:8px;white-space:nowrap;border:1px solid transparent;border-radius:7px;padding:7px 10px;background:transparent;color:var(--muted);font:inherit;font-size:12px;cursor:pointer}
@@ -458,7 +464,7 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
             <div class="top-actions">
                 <div class="theme-control"><span class="theme-control-icon"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18h1.5a2.5 2.5 0 0 0 2.1-4 1.5 1.5 0 0 1 1.3-2.3H19a2 2 0 0 0 2-2 9 9 0 0 0-9-9Z"/><circle cx="7.5" cy="11" r=".7" fill="currentColor" stroke="none"/><circle cx="10" cy="7.5" r=".7" fill="currentColor" stroke="none"/><circle cx="15" cy="8" r=".7" fill="currentColor" stroke="none"/></svg></span><label for="theme-picker" class="theme-label">Theme</label><div class="theme-select-wrap"><select id="theme-picker" aria-label="Console color theme"><option value="">Midnight</option><option value="A">Matrix</option><option value="B">Light</option><option value="C">Slate</option><option value="D">Rose</option><option value="X">Violet</option><option value="P">Ocean</option></select><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></div></div>
                 <span class="status">Session active</span>
-                <div class="action-group"><button class="ui-button" id="help-button" type="button" title="Show commands"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.7 2.7 0 1 1 4.7 1.8c-1.2 1.2-2.2 1.4-2.2 3.2"/><path d="M12 17.5h.01"/></svg><span>Help</span></button><button class="ui-button" id="copy-button" type="button" title="Copy terminal output"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg><span class="button-label">Copy output</span></button><button class="ui-button" id="screenshot-button" type="button" title="Save terminal screenshot as PNG"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3"/><path d="M8 6l1.5-2h5L16 6"/></svg><span class="button-label">Screenshot</span></button><button class="ui-button" id="clear-button" type="button" title="Clear terminal"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span>Clear</span></button></div></div>
+                <div class="action-group"><button class="ui-button" id="help-button" type="button" title="Show commands"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.7 2.7 0 1 1 4.7 1.8c-1.2 1.2-2.2 1.4-2.2 3.2"/><path d="M12 17.5h.01"/></svg><span>Help</span></button><button class="ui-button" id="copy-button" type="button" title="Copy terminal output"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg><span class="button-label">Copy output</span></button><div class="export-controls"><label class="sr-only" for="export-format">Report format</label><select id="export-format" aria-label="Report format"><option value="txt">TXT</option><option value="json">JSON</option><option value="pdf">PDF</option></select><button class="ui-button" id="export-button" type="button" title="Export completed results from the current tab"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4"/><path d="M5 16v4h14v-4"/></svg><span class="button-label">Export</span></button></div><button class="ui-button" id="screenshot-button" type="button" title="Save terminal screenshot as PNG"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3"/><path d="M8 6l1.5-2h5L16 6"/></svg><span class="button-label">Screenshot</span></button><button class="ui-button" id="clear-button" type="button" title="Clear terminal"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span>Clear</span></button></div></div>
         </div>
         <section id="terminal-shell" aria-label="Interactive network console">
             <div id="header-bar">
@@ -1025,6 +1031,92 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
     });
     // Capture the actual rendered terminal via the browser's screen-sharing API.
     // No image is uploaded; the captured frame is cropped and saved locally.
+    // Export only completed results from the active tab. Never re-run commands.
+    function reportData() {
+        return {
+            title: 'Network Console — Diagnostic Report',
+            source: window.location.origin,
+            generated_at: new Date().toISOString(),
+            terminal: activeTab + 1,
+            commands: transcript.map(({command,result,status}) => ({
+                command, result, http_status: status || null
+            }))
+        };
+    }
+    function saveReportFile(content,type,extension) {
+        const blob = new Blob([content],{type});
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'console-report-' + new Date().toISOString().replace(/[:.]/g,'-') + '.' + extension;
+        document.body.append(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url),10000);
+    }
+    function reportAsText(data) {
+        const sections = [
+            data.title,
+            'Source: ' + data.source,
+            'Generated (UTC): ' + data.generated_at,
+            'Terminal: ' + data.terminal,
+            'Commands: ' + data.commands.length,
+            '='.repeat(68)
+        ];
+        data.commands.forEach((entry,i) => {
+            sections.push('', '[' + (i+1) + '] $ ' + entry.command,
+                'HTTP status: ' + (entry.http_status ?? 'Unavailable'),
+                '-'.repeat(68), entry.result);
+        });
+        return sections.join('\n') + '\n';
+    }
+    function reportAsPdf(data) {
+        // Native browser print-to-PDF: content is inserted via textContent, not HTML.
+        const win = window.open('','_blank');
+        if (!win) {
+            alert('Allow pop-ups to export a PDF report.');
+            return;
+        }
+        win.opener = null;
+        const doc = win.document;
+        doc.title = 'Network Console — Diagnostic Report';
+        const style = doc.createElement('style');
+        style.textContent = '@page{size:A4;margin:17mm}body{font:13px/1.5 system-ui,sans-serif;color:#17202a;margin:30px}h1{font-size:22px;margin:0 0 8px}header{border-bottom:2px solid #148b92;padding-bottom:16px;margin-bottom:22px}.meta{font-size:11px;color:#50606c}section{break-inside:avoid-page;border:1px solid #d8e0e5;border-radius:8px;padding:14px;margin:0 0 16px}h2{font-size:14px;overflow-wrap:anywhere;margin:0 0 8px}pre{font:11px/1.5 ui-monospace,monospace;white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0 0}small{color:#53616d}@media print{body{margin:0}section{break-inside:auto}}';
+        doc.head.append(style);
+        const header = doc.createElement('header');
+        const title = doc.createElement('h1');
+        title.textContent = data.title;
+        const meta = doc.createElement('div');
+        meta.className = 'meta';
+        meta.textContent = data.source + ' · ' + data.generated_at + ' · Terminal ' + data.terminal + ' · ' + data.commands.length + ' commands';
+        header.append(title,meta);
+        doc.body.append(header);
+        data.commands.forEach((entry,i) => {
+            const section = doc.createElement('section');
+            const heading = doc.createElement('h2');
+            heading.textContent = (i+1) + '. $ ' + entry.command;
+            const status = doc.createElement('small');
+            status.textContent = 'HTTP status: ' + (entry.http_status ?? 'Unavailable');
+            const result = doc.createElement('pre');
+            result.textContent = entry.result;
+            section.append(heading,status,result);
+            doc.body.append(section);
+        });
+        win.focus();
+        win.print();
+    }
+    document.getElementById('export-button').addEventListener('click',() => {
+        if (!transcript.length) {
+            alert('No completed commands to export in this tab.');
+            return;
+        }
+        const data = reportData();
+        const format = document.getElementById('export-format').value;
+        if (format === 'txt') saveReportFile(reportAsText(data),'text/plain;charset=utf-8','txt');
+        else if (format === 'json') saveReportFile(JSON.stringify(data,null,2)+'\n','application/json;charset=utf-8','json');
+        else if (format === 'pdf') reportAsPdf(data);
+    });
+
     document.getElementById('screenshot-button').addEventListener('click', async () => {
         const button = document.getElementById('screenshot-button');
         const originalLabel = button.querySelector('.button-label').textContent;
