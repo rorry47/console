@@ -325,6 +325,17 @@ body{height:100dvh;min-height:0;display:flex;flex-direction:column;padding-botto
 .status{margin-right:0;white-space:nowrap}
 @media(max-width:900px){#workspace-top{align-items:flex-start}.top-actions{gap:10px}.action-group{padding-left:0;border-left:0}.brand-subtitle{font-size:11px}}
 @media(max-width:640px){#workspace-top{gap:14px}.top-actions{width:100%;justify-content:space-between;gap:8px}.theme-control{gap:7px}.theme-label{display:none}.theme-select-wrap{min-width:120px}.action-group{gap:6px}.ui-button{min-height:39px;padding:8px 10px;gap:6px}.action-group .button-label{display:none}.status{display:none}}
+/* Command completion: compact keyboard-accessible suggestions. */
+#input-wrapper{z-index:3}
+#completion-panel{position:absolute;bottom:calc(100% + 8px);left:clamp(14px,3vw,30px);right:clamp(14px,3vw,30px);max-height:min(310px,45vh);overflow:auto;border:1px solid var(--terminal-outline);border-radius:12px;background:var(--terminal-bg);box-shadow:0 16px 44px #0008;padding:6px;scrollbar-width:thin}
+#completion-panel[hidden]{display:none}
+.completion-item{display:flex;width:100%;gap:12px;align-items:center;justify-content:space-between;padding:9px 12px;text-align:left;color:var(--fg);background:transparent;border:0;border-radius:7px}
+.completion-item:hover,.completion-item[aria-selected="true"]{background:var(--button-hover)}
+.completion-item[aria-selected="true"]{box-shadow:inset 2px 0 0 var(--acc)}
+.completion-command{color:var(--acc);font-weight:700;white-space:nowrap}
+.completion-description{color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.completion-hint{padding:6px 12px 3px;color:var(--muted);font-size:11px;border-top:1px solid var(--border)}
+@media(max-width:640px){.completion-item{align-items:flex-start;flex-direction:column;gap:1px}.completion-description{max-width:100%}#completion-panel{max-height:35vh}}
 /* Network activity visualization: decorative, not a connectivity indicator. */
 .brand-icon svg{width:29px;height:29px;overflow:visible;filter:drop-shadow(0 0 8px var(--page-glow))}
 .brand-icon .logo-cursor{animation:logo-cursor 1.4s steps(1,end) infinite}
@@ -425,10 +436,11 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
             <div id="loader" role="status"><span>▌</span> Executing command...</div>
             <div id="input-wrapper">
                 <label for="command-input" class="prompt-label"><span class="host">~</span> $</label>
-                <input type="text" id="command-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Enter command, e.g. help" maxlength="2048" autofocus aria-label="Console command">
+                <input type="text" id="command-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Enter command, e.g. help" maxlength="2048" autofocus aria-label="Console command" aria-controls="completion-panel" aria-expanded="false" aria-autocomplete="list">
+                <div id="completion-panel" role="listbox" aria-label="Command suggestions" hidden></div>
                 <button class="ui-button" id="run-button" type="button">Run ↵</button>
             </div>
-            <div id="terminal-footer"><span><span class="kbd">↑</span> <span class="kbd">↓</span> history &nbsp; <span class="kbd">Enter</span> run</span><span><span class="kbd">Ctrl</span> + <span class="kbd">L</span> clear &nbsp; • &nbsp; First-party, privacy-friendly</span></div>
+            <div id="terminal-footer"><span><span class="kbd">↑</span> <span class="kbd">↓</span> history &nbsp; <span class="kbd">Enter</span> run &nbsp; <span class="kbd">Tab</span> complete</span><span><span class="kbd">Ctrl</span> + <span class="kbd">L</span> clear &nbsp; • &nbsp; First-party, privacy-friendly</span></div>
         </section>
     </main>
 
@@ -452,8 +464,131 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
     const history = [];
     let histIdx   = -1;
 
+    // Local command catalog mirrors the server-side help list; no network requests.
+    const commandCatalog = [
+        ['whois','Domain or IP WHOIS lookup'],['rdap','Modern domain registration lookup'],
+        ['geoip','Country, city, ISP and ASN'],['headers','HTTP response headers'],
+        ['dnsbl','IP spam blacklist check'],['dnssec','DNSSEC validation'],
+        ['redirect','Follow HTTP redirects'],['tech','Detect site technologies'],
+        ['ping','ICMP connectivity test'],['httping','HTTP latency test'],
+        ['dig','DNS record lookup'],['nslookup','DNS resolver lookup'],
+        ['curl','Fetch HTTP headers'],['nmap','Scan common ports'],
+        ['ssl','TLS certificate details'],['tracert','Trace network route'],
+        ['ptr','Reverse DNS lookup'],['port','Check a TCP port'],
+        ['passgen','Generate secure password'],['hash','Hash a string'],
+        ['base64','Encode or decode Base64'],['urlencode','URL-encode text'],
+        ['urldecode','URL-decode text'],['list','Fetch proxy lists'],
+        ['myip','Display your IP'],['date','Server date and time'],
+        ['uptime','Server uptime'],['whoami','Console identity'],
+        ['su','Change display name'],['clear','Clear terminal output'],
+        ['cls','Clear terminal output'],['info','About this console'],
+        ['exit','Leave the console'],['help','Show available commands']
+    ];
+    const commandArgs = {
+        dig:['A','AAAA','MX','NS','TXT','CNAME','SOA','CAA','PTR','SRV'],
+        base64:['encode','decode'],
+        hash:['md5','sha1','sha256','sha512'],
+        list:['proxy','http','socks4','socks5']
+    };
+    const completionPanel = document.getElementById('completion-panel');
+    let completionItems = [];
+    let completionIndex = 0;
+    function hideCompletions() {
+        completionPanel.hidden = true;
+        completionPanel.replaceChildren();
+        completionItems = [];
+        input.setAttribute('aria-expanded','false');
+        input.removeAttribute('aria-activedescendant');
+    }
+    function getCompletions(value) {
+        const raw = value.trimStart();
+        if (!raw || raw.length > 128 || /[\r\n]/.test(raw)) return [];
+        const parts = raw.split(/\s+/);
+        if (parts.length === 1) {
+            const prefix = parts[0].toLowerCase();
+            return commandCatalog.filter(([name]) => name.startsWith(prefix)).map(([name,desc]) => ({value:name,desc}));
+        }
+        const name = parts[0].toLowerCase();
+        const options = commandArgs[name];
+        if (!options || parts.length !== 2) return [];
+        const prefix = parts[1].toLowerCase();
+        return options.filter(v => v.toLowerCase().startsWith(prefix)).map(v => ({value:name+' '+v,desc:name+' option'}));
+    }
+    function markCompletion(index) {
+        completionIndex = (index + completionItems.length) % completionItems.length;
+        const buttons = completionPanel.querySelectorAll('.completion-item');
+        buttons.forEach((button,i) => button.setAttribute('aria-selected',String(i === completionIndex)));
+        const selected = buttons[completionIndex];
+        if (selected) {
+            input.setAttribute('aria-activedescendant',selected.id);
+            selected.scrollIntoView({block:'nearest'});
+        }
+    }
+    function showCompletions() {
+        // Only suggest when editing at the end, so we never overwrite mid-string edits.
+        if (input.disabled || input.selectionStart !== input.value.length || input.selectionEnd !== input.value.length) {
+            hideCompletions(); return;
+        }
+        completionItems = getCompletions(input.value).slice(0,8);
+        completionPanel.replaceChildren();
+        if (!completionItems.length) { hideCompletions(); return; }
+        completionItems.forEach((item,i) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'completion-item';
+            button.id = 'completion-option-' + i;
+            button.setAttribute('role','option');
+            const command = document.createElement('span');
+            command.className = 'completion-command';
+            command.textContent = item.value;
+            const description = document.createElement('span');
+            description.className = 'completion-description';
+            description.textContent = item.desc;
+            button.append(command,description);
+            button.addEventListener('mousedown',e => e.preventDefault());
+            button.addEventListener('click',() => applyCompletion(i));
+            completionPanel.append(button);
+        });
+        const hint = document.createElement('div');
+        hint.className = 'completion-hint';
+        hint.textContent = 'Tab / Enter select · ↑ ↓ navigate · Esc dismiss';
+        completionPanel.append(hint);
+        completionPanel.hidden = false;
+        input.setAttribute('aria-expanded','true');
+        markCompletion(0);
+    }
+    function applyCompletion(index) {
+        const item = completionItems[index];
+        if (!item) return;
+        input.value = item.value + ' ';
+        hideCompletions();
+        input.focus();
+    }
+    input.addEventListener('input',showCompletions);
+    input.addEventListener('blur',hideCompletions);
+
     // Key handling: history navigation + submit
     input.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && !completionPanel.hidden) {
+            e.preventDefault();
+            hideCompletions();
+            return;
+        }
+        if (e.key === 'Tab' && !completionPanel.hidden) {
+            e.preventDefault();
+            applyCompletion(completionIndex);
+            return;
+        }
+        if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !completionPanel.hidden) {
+            e.preventDefault();
+            markCompletion(completionIndex + (e.key === 'ArrowDown' ? 1 : -1));
+            return;
+        }
+        if (e.key === 'Enter' && !completionPanel.hidden) {
+            e.preventDefault();
+            applyCompletion(completionIndex);
+            return;
+        }
         if (e.key === 'ArrowUp') {
             e.preventDefault();
             if (histIdx < history.length - 1) {
@@ -481,6 +616,7 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
     async function submit() {
         const cmd = input.value.trim();
         if (!cmd) return;
+        hideCompletions();
 
         history.unshift(cmd);
         histIdx = -1;
