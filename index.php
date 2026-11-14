@@ -100,6 +100,40 @@ if (!empty($_SESSION['var']) && isset($_POST['command'])) {
         exit();
     }
 
+    // IP-based limits shared across sessions (including fresh browser sessions).
+    // Use the actual TCP peer address; never trust client-supplied IP headers.
+    $clientIp = (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+    $cmdName = strtolower(strtok(trim((string)$_POST['command']), " \\t\\r\\n") ?: '');
+    $heavy = in_array($cmdName, ['nmap', 'tracert', 'whois', 'rdap', 'dnsbl', 'dnssec'], true);
+    $limitFile = sys_get_temp_dir() . '/console-rate-' . hash('sha256', $clientIp) . '.json';
+    $fp = @fopen($limitFile, 'c+');
+    if ($fp === false || !flock($fp, LOCK_EX)) {
+        if (is_resource($fp)) fclose($fp);
+        http_response_code(503);
+        echo 'Rate limiter temporarily unavailable.';
+        exit();
+    }
+    $now = time();
+    $state = json_decode(stream_get_contents($fp) ?: '', true);
+    if (!is_array($state) || ($state['until'] ?? 0) <= $now) {
+        $state = ['until' => $now + 60, 'all' => 0, 'heavy' => 0];
+    }
+    $state['all']++;
+    if ($heavy) $state['heavy']++;
+    $limited = $state['all'] > 60 || $state['heavy'] > 8;
+    rewind($fp);
+    ftruncate($fp, 0);
+    fwrite($fp, json_encode($state));
+    fflush($fp);
+    flock($fp, LOCK_UN);
+    fclose($fp);
+    if ($limited) {
+        http_response_code(429);
+        header('Retry-After: ' . max(1, $state['until'] - $now));
+        echo 'Rate limit exceeded. Please wait.';
+        exit();
+    }
+
     // Rate limiting
     $_SESSION['rate_limit']['count']++;
     if ($_SESSION['rate_limit']['count'] > 60) {
