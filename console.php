@@ -365,8 +365,6 @@ if (in_array($command, $net_cmds, true)) {
                 CURLOPT_TIMEOUT => 8,
                 CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
                 CURLOPT_FOLLOWLOCATION => false,
-                CURLOPT_PROXY => '',
-                CURLOPT_NOPROXY => '*',
                 CURLOPT_SSL_VERIFYPEER => true,
                 CURLOPT_SSL_VERIFYHOST => 2,
                 CURLOPT_HTTPHEADER => ['Accept: application/rdap+json, application/json'],
@@ -466,7 +464,7 @@ if ($command === 'dig') {
             $url = $host;
         }
         $url = filter_var($url, FILTER_SANITIZE_URL);
-        boundedExec('curl -q --noproxy '*' -Is --max-time 10 --max-redirs 0 --resolve ' . escapeshellarg($host . ':443:' . $targetIp) . ' ' . escapeshellarg($url) . ' 2>&1 | head -40', $out);
+        boundedExec('curl -q --noproxy \* -Is --max-time 10 --max-redirs 0 --resolve ' . escapeshellarg($host . ':443:' . $targetIp) . ' ' . escapeshellarg($url) . ' 2>&1 | head -40', $out);
         foreach ($out as $line) {
             echo htmlspecialchars($line, ENT_QUOTES, 'UTF-8') . '<br>';
         }
