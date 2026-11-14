@@ -15,10 +15,65 @@ header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: no-referrer');
 header('X-Frame-Options: DENY');
 header('Cache-Control: no-store');
-if (!isset($_SESSION['captcha']) || time() > ($_SESSION['captcha']['expires'] ?? 0)) {
-    $_SESSION['captcha'] = ['a' => random_int(2, 19), 'b' => random_int(2, 19), 'expires' => time() + 300, 'attempts' => 0];
+function newCaptcha(): array {
+    $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    $word = '';
+    for ($i = 0; $i < 6; $i++) $word .= $alphabet[random_int(0, strlen($alphabet) - 1)];
+    return ['word' => $word, 'expires' => time() + 300, 'attempts' => 0];
+}
+if (!isset($_SESSION['captcha']) || !is_array($_SESSION['captcha']) || !isset($_SESSION['captcha']['word']) || time() > ($_SESSION['captcha']['expires'] ?? 0)) {
+    $_SESSION['captcha'] = newCaptcha();
 }
 
+// Serve a first-party CAPTCHA image. Requires the PHP GD extension.
+if (isset($_GET['captcha_image'])) {
+    header('Content-Type: image/png');
+    header('Cache-Control: no-store, no-cache, must-revalidate');
+    header('X-Content-Type-Options: nosniff');
+    if (!extension_loaded('gd') || empty($_SESSION['captcha']['word'])) {
+        http_response_code(503);
+        exit();
+    }
+    $w = 250; $h = 85;
+    $im = imagecreatetruecolor($w, $h);
+    $bg = imagecolorallocate($im, 13, 19, 28);
+    $ink = imagecolorallocate($im, 109, 235, 225);
+    $muted = imagecolorallocate($im, 39, 72, 83);
+    imagefilledrectangle($im, 0, 0, $w, $h, $bg);
+    for ($i = 0; $i < 12; $i++) {
+        imageline($im, random_int(0,$w),random_int(0,$h),random_int(0,$w),random_int(0,$h),$muted);
+    }
+    // Draw characters separately with random positions and rotation.
+    // Prefer a locally installed TrueType font; never load remote assets.
+    $fonts = ['/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf',
+              '/usr/share/fonts/truetype/liberation2/LiberationMono-Bold.ttf',
+              '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'];
+    $font = null;
+    foreach ($fonts as $candidate) if (is_readable($candidate)) { $font = $candidate; break; }
+    $word = $_SESSION['captcha']['word'];
+    for ($i = 0; $i < strlen($word); $i++) {
+        $x = 16 + $i * 37 + random_int(-3,3);
+        $y = 56 + random_int(-9,9);
+        if ($font && function_exists('imagettftext')) {
+            imagettftext($im, random_int(24,30), random_int(-22,22), $x, $y, $ink, $font, $word[$i]);
+        } else {
+            imagestring($im, 5, $x, $y - 22, $word[$i], $ink);
+        }
+    }
+    for ($i = 0; $i < 160; $i++) imagesetpixel($im,random_int(0,$w-1),random_int(0,$h-1),$muted);
+    // Subtle wave distortion across columns.
+    $out = imagecreatetruecolor($w, $h);
+    imagefilledrectangle($out, 0, 0, $w, $h, $bg);
+    $phase = random_int(0,628)/100;
+    for ($x = 0; $x < $w; $x++) {
+        $shift = (int)round(3 * sin($x / 17 + $phase));
+        imagecopy($out, $im, $x, $shift, $x, 0, 1, $h);
+    }
+    imagepng($out);
+    imagedestroy($out);
+    imagedestroy($im);
+    exit();
+}
 
 // CSRF token generation
 if (empty($_SESSION['csrf_token'])) {
@@ -54,6 +109,32 @@ if (!empty($_SESSION['var']) && isset($_POST['command'])) {
 
     require './console.php';
     exit();
+}
+
+// Verify CAPTCHA before rendering HTML so redirects and headers are reliable.
+$captchaError = '';
+if (empty($_SESSION['var']) && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ok'])) {
+    $c = $_SESSION['captcha'];
+    $token = $_POST['csrf_token'] ?? '';
+    $answer = $_POST['captcha_answer'] ?? '';
+    if (!is_string($token) || !hash_equals($_SESSION['csrf_token'], $token)) {
+        http_response_code(403);
+        $captchaError = 'Invalid request.';
+    } else {
+        $valid = is_string($answer) && strlen($answer) === 6 && $c['attempts'] < 5
+            && time() <= $c['expires'] && hash_equals($c['word'], strtoupper($answer));
+        $_SESSION['captcha']['attempts']++;
+        if ($valid) {
+            session_regenerate_id(true);
+            $_SESSION['var'] = '1';
+            unset($_SESSION['captcha']);
+            header('Location: ./', true, 303);
+            exit();
+        }
+        $captchaError = 'Incorrect characters. Try again.';
+        // New challenge on every failure prevents unlimited guesses of one image.
+        $_SESSION['captcha'] = newCaptcha();
+    }
 }
 
 // Helper to get safe display name
@@ -267,39 +348,18 @@ $displayName = getDisplayName();
 ?>
 
 <?php if (empty($_SESSION['var'])): ?>
-    <!-- First-party CAPTCHA, generated and verified on this server. -->
-    <div id="captcha-gate">
+    <div id="captcha-gate" style="max-width:350px;margin:12vh auto;padding:26px;border:1px solid #2e454c;border-radius:12px;background:#101820;text-align:center">
+        <div style="font-size:19px;margin-bottom:12px;color:#6cf7fc">Human verification</div>
+        <p style="font-size:13px;margin-bottom:18px;color:#a4b2b6">Type the characters shown in the image.</p>
         <form method="post" autocomplete="off">
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8') ?>">
-            <label for="captcha-answer">Security check: <?= (int)$_SESSION['captcha']['a'] ?> + <?= (int)$_SESSION['captcha']['b'] ?> = ?</label>
-            <input id="captcha-answer" name="captcha_answer" type="number" inputmode="numeric" required min="0" max="100" class="btn" style="width:100px" autofocus>
-            <button type="submit" name="ok" value="1" class="btn">Continue</button>
+            <img src="?captcha_image=1" alt="CAPTCHA challenge" width="250" height="85" style="display:block;margin:0 auto 14px;border:1px solid #35535d;border-radius:8px;max-width:100%">
+            <input id="captcha-answer" name="captcha_answer" type="text" maxlength="6" minlength="6" pattern="[A-Za-z0-9]{6}" required autocomplete="off" spellcheck="false" autocapitalize="characters" placeholder="Enter the 6 characters" class="btn" style="width:100%;margin-bottom:12px;text-align:center;letter-spacing:3px;text-transform:uppercase" autofocus>
+            <button type="submit" name="ok" value="1" class="btn" style="width:100%">Continue</button>
         </form>
-        <?php
-        if (isset($_POST['ok'])) {
-            if (!hash_equals($_SESSION['csrf_token'], (string)($_POST['csrf_token'] ?? ''))) {
-                http_response_code(403);
-                echo '<p class="error-text">Invalid request.</p>';
-            } else {
-                $c = $_SESSION['captcha'];
-                $valid = $c['attempts'] < 5 && time() <= $c['expires']
-                    && filter_var($_POST['captcha_answer'] ?? null, FILTER_VALIDATE_INT) !== false
-                    && (int)$_POST['captcha_answer'] === $c['a'] + $c['b'];
-                $_SESSION['captcha']['attempts']++;
-                if ($valid) {
-                    session_regenerate_id(true);
-                    $_SESSION['var'] = '1';
-                    unset($_SESSION['captcha']);
-                    header('Location: ./', true, 303);
-                    exit();
-                }
-                if ($_SESSION['captcha']['attempts'] >= 5 || time() > $c['expires']) {
-                    $_SESSION['captcha'] = ['a' => random_int(2, 19), 'b' => random_int(2, 19), 'expires' => time() + 300, 'attempts' => 0];
-                }
-                echo '<p class="error-text">Incorrect answer. Refresh the page for a new challenge.</p>';
-            }
-        }
-        ?>
+        <?php if (!empty($captchaError)): ?>
+            <p class="error-text" style="margin-top:12px"><?= htmlspecialchars($captchaError, ENT_QUOTES, 'UTF-8') ?></p>
+        <?php endif; ?>
     </div>
 
 <?php else: ?>
