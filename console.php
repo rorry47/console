@@ -934,6 +934,7 @@ if ($command === 'dnsbl') {
         $url = filter_var($url, FILTER_SANITIZE_URL);
 
         $response = '';
+        $truncated = false;
         $ch = curl_init();
         curl_setopt_array($ch, [
             CURLOPT_RESOLVE => [$host . ':443:' . (filter_var($targetIp, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) ? '[' . $targetIp . ']' : $targetIp)],
@@ -947,8 +948,13 @@ if ($command === 'dnsbl') {
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; console/2.0)',
-            CURLOPT_WRITEFUNCTION => static function ($curl, string $chunk) use (&$response): int {
-                if (strlen($response) + strlen($chunk) > 262144) return 0;
+            CURLOPT_WRITEFUNCTION => static function ($curl, string $chunk) use (&$response, &$truncated): int {
+                $remaining = 262144 - strlen($response);
+                if (strlen($chunk) > $remaining) {
+                    $response .= substr($chunk, 0, $remaining);
+                    $truncated = true;
+                    return 0;
+                }
                 $response .= $chunk;
                 return strlen($chunk);
             },
@@ -957,9 +963,11 @@ if ($command === 'dnsbl') {
         $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $header_size = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
         curl_close($ch);
-        if ($success === false) $response = '';
+        // cURL reports a write error when we deliberately stop at the size cap.
+        // Retain the bounded prefix for technology detection in that case.
+        if ($success === false && !$truncated) $response = '';
 
-        if (!$response) {
+        if (!$response || $header_size > strlen($response)) {
             err('tech: could not connect to ' . htmlspecialchars($host, ENT_QUOTES, 'UTF-8'));
             exit();
         }
