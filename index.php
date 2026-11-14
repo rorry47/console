@@ -436,7 +436,7 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
 .brand-title{font-weight:800}
 .brand-subtitle{opacity:.95}
 #terminal-shell{position:relative;box-shadow:0 28px 90px #0008,0 0 0 1px #ffffff07,inset 0 1px 0 #ffffff0c;transition:border-color .3s ease,box-shadow .3s ease}
-#terminal-shell:focus-within{border-color:var(--acc);box-shadow:0 28px 90px #0008,0 0 0 1px var(--page-glow),inset 0 1px 0 #ffffff10}
+/* Keep terminal frame visually stable while typing or focusing controls. */
 #header-bar{position:relative;min-height:49px;background:linear-gradient(180deg,#ffffff09,transparent),var(--header-bg)}
 #header-bar::after{content:"";position:absolute;bottom:-1px;left:0;width:100%;height:1px;background:linear-gradient(90deg,transparent,var(--acc),transparent);opacity:.35}
 #header-bar .dot{box-shadow:inset 0 1px 2px #ffffff66,0 0 0 1px #0003}
