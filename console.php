@@ -597,15 +597,21 @@ if ($command === 'dig') {
 
     // ── geoip ─────────────────────────────────────────────────────────────────
     if ($command === 'geoip') {
-        // Resolve to IP if hostname given
-        $ip = filter_var($host, FILTER_VALIDATE_IP) ? $host : gethostbyname($host);
-        if (!filter_var($ip, FILTER_VALIDATE_IP)) {
-            err('geoip: cannot resolve host to IP');
-            exit();
-        }
-
-        $ctx  = stream_context_create(['http' => ['timeout' => 8, 'ignore_errors' => true]]);
-        $json = @file_get_contents('http://ip-api.com/json/' . urlencode($ip) . '?fields=status,message,country,countryCode,regionName,city,zip,lat,lon,timezone,isp,org,as,query', false, $ctx);
+        // Use the already validated, pinned IP rather than resolving DNS again.
+        $ip = $targetIp;
+        $ch = curl_init('http://ip-api.com/json/' . rawurlencode($ip) . '?fields=status,message,country,countryCode,regionName,city,zip,lat,lon,timezone,isp,org,as,query');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_PROTOCOLS => CURLPROTO_HTTP,
+            CURLOPT_CONNECTTIMEOUT => 4,
+            CURLOPT_TIMEOUT => 8,
+            CURLOPT_MAXREDIRS => 0,
+        ]);
+        $json = curl_exec($ch);
+        $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($status !== 200 || !is_string($json) || strlen($json) > 16384) $json = false;
 
         if (!$json || !($data = json_decode($json, true)) || ($data['status'] ?? '') !== 'success') {
             err('geoip: failed to get data for ' . htmlspecialchars($ip, ENT_QUOTES, 'UTF-8'));
@@ -642,7 +648,7 @@ if ($command === 'dig') {
         $url = 'https://' . $host . '/';
         $ch = curl_init($url);
         curl_setopt_array($ch, [
-            CURLOPT_RESOLVE => [$host . ':443:' . $targetIp],
+            CURLOPT_RESOLVE => [$host . ':443:' . (filter_var($targetIp, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) ? '[' . $targetIp . ']' : $targetIp)],
             CURLOPT_NOBODY => true,
             CURLOPT_HEADER => true,
             CURLOPT_RETURNTRANSFER => true,
@@ -831,12 +837,12 @@ if ($command === 'dnsbl') {
             $urlHost = parse_url($current_url, PHP_URL_HOST);
             $urlPort = parse_url($current_url, PHP_URL_PORT);
             $urlScheme = strtolower((string)parse_url($current_url, PHP_URL_SCHEME));
-            if (!$urlHost || !in_array($urlScheme, ['http','https'], true) || ($urlPort !== null && !in_array($urlPort, [80,443], true)) || isBlocked($urlHost)) { err('Redirect target blocked'); break; }
+            if (!$urlHost || !in_array($urlScheme, ['http','https'], true) || ($urlPort !== null && !in_array($urlPort, [80,443], true))) { err('Redirect target blocked'); break; }
             $urlIp = resolvePublicIp($urlHost);
             if ($urlIp === null) { err('Redirect target blocked'); break; }
             $ch = curl_init();
             curl_setopt_array($ch, [
-                CURLOPT_RESOLVE => [$urlHost . ':' . ($urlPort ?: ($urlScheme === 'https' ? 443 : 80)) . ':' . $urlIp],
+                CURLOPT_RESOLVE => [$urlHost . ':' . ($urlPort ?: ($urlScheme === 'https' ? 443 : 80)) . ':' . (filter_var($urlIp, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) ? '[' . $urlIp . ']' : $urlIp)],
                 CURLOPT_URL            => $current_url,
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_HEADER         => true,
