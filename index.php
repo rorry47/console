@@ -205,6 +205,27 @@ body{height:100dvh;min-height:0;display:flex;flex-direction:column;padding-botto
 #input-wrapper{position:relative;bottom:auto}
 @media(max-width:640px){body{height:100dvh;padding-bottom:12px}#terminal-shell{min-height:0}#output{min-height:0}}
 .theme-label{color:var(--muted);font-size:12px}#theme-picker{max-width:132px;color:var(--button-text);background:var(--button-bg);border:1px solid var(--border)}#theme-picker option{color:#d9e5f1;background:#142132}
+/* Header controls */
+#workspace-top{gap:18px;padding:2px 0 6px}
+.brand{min-width:0}.brand-title{font-size:18px;letter-spacing:-.6px}.brand-subtitle{letter-spacing:.1px}
+.top-actions{gap:16px;justify-content:flex-end}
+.action-group{display:flex;gap:8px;align-items:center;padding-left:14px;border-left:1px solid var(--border)}
+.ui-button{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:42px;padding:9px 14px;white-space:nowrap;font-size:13px;font-weight:600}
+.action-icon{display:block;flex:0 0 auto}
+.ui-button .action-icon{color:var(--acc)}
+.ui-button:active{transform:translateY(1px)}
+.theme-control{display:flex;align-items:center;gap:10px}
+.theme-control-icon{color:var(--acc);display:flex;align-items:center}
+.theme-label{color:var(--muted);font-size:12px;font-weight:600}
+.theme-select-wrap{position:relative;display:flex;align-items:center;min-width:142px}
+#theme-picker{appearance:none;-webkit-appearance:none;display:block;width:100%;max-width:none;min-height:42px;padding:9px 37px 9px 14px;border:1px solid var(--border);border-radius:9px;background:var(--button-bg);color:var(--button-text);font:600 13px/1.4 var(--font);cursor:pointer;outline:none}
+#theme-picker:hover{border-color:var(--acc);background:var(--button-hover)}
+#theme-picker:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.theme-select-wrap>.action-icon{position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--muted);width:16px;height:16px}
+#theme-picker option{background:#142132;color:#d9e5f1}
+.status{margin-right:0;white-space:nowrap}
+@media(max-width:900px){#workspace-top{align-items:flex-start}.top-actions{gap:10px}.action-group{padding-left:0;border-left:0}.brand-subtitle{font-size:11px}}
+@media(max-width:640px){#workspace-top{gap:14px}.top-actions{width:100%;justify-content:space-between;gap:8px}.theme-control{gap:7px}.theme-label{display:none}.theme-select-wrap{min-width:120px}.action-group{gap:6px}.ui-button{min-height:39px;padding:8px 10px;gap:6px}.action-group .button-label{display:none}.status{display:none}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;scroll-behavior:auto!important}}
 </style>
 
@@ -230,7 +251,10 @@ body{height:100dvh;min-height:0;display:flex;flex-direction:column;padding-botto
     <main id="workspace">
         <div id="workspace-top">
             <div class="brand"><div class="brand-icon" aria-hidden="true">&gt;_</div><div><div class="brand-title">Network Console <span style="color:var(--acc)">/</span></div><div class="brand-subtitle">Diagnostics &amp; developer utilities</div></div></div>
-            <div class="top-actions"><label for="theme-picker" class="theme-label">Theme</label><select id="theme-picker" class="ui-button" aria-label="Console color theme"><option value="">Midnight</option><option value="A">Matrix</option><option value="B">Light</option><option value="C">Slate</option><option value="D">Rose</option><option value="X">Violet</option><option value="P">Ocean</option></select><span class="status">Session active</span><button class="ui-button" id="help-button" type="button">Help</button><button class="ui-button" id="copy-button" type="button">Copy output</button><button class="ui-button" id="clear-button" type="button">Clear</button></div>
+            <div class="top-actions">
+                <div class="theme-control"><span class="theme-control-icon"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18h1.5a2.5 2.5 0 0 0 2.1-4 1.5 1.5 0 0 1 1.3-2.3H19a2 2 0 0 0 2-2 9 9 0 0 0-9-9Z"/><circle cx="7.5" cy="11" r=".7" fill="currentColor" stroke="none"/><circle cx="10" cy="7.5" r=".7" fill="currentColor" stroke="none"/><circle cx="15" cy="8" r=".7" fill="currentColor" stroke="none"/></svg></span><label for="theme-picker" class="theme-label">Theme</label><div class="theme-select-wrap"><select id="theme-picker" aria-label="Console color theme"><option value="">Midnight</option><option value="A">Matrix</option><option value="B">Light</option><option value="C">Slate</option><option value="D">Rose</option><option value="X">Violet</option><option value="P">Ocean</option></select><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></div></div>
+                <span class="status">Session active</span>
+                <div class="action-group"><button class="ui-button" id="help-button" type="button" title="Show commands"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.7 2.7 0 1 1 4.7 1.8c-1.2 1.2-2.2 1.4-2.2 3.2"/><path d="M12 17.5h.01"/></svg><span>Help</span></button><button class="ui-button" id="copy-button" type="button" title="Copy terminal output"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg><span class="button-label">Copy output</span></button><button class="ui-button" id="clear-button" type="button" title="Clear terminal"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span>Clear</span></button></div></div>
         </div>
         <section id="terminal-shell" aria-label="Interactive network console">
             <div id="header-bar">
