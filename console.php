@@ -92,7 +92,7 @@ function isBlocked(string $host): bool {
 }
 
 /** Bounded shell execution; requires GNU coreutils timeout on the host. */
-function boundedExec(string $command, array &$output): void {
+function boundedExec(string $command, ?array &$output): void {
     $output = [];
     $wrapped = 'timeout --signal=TERM --kill-after=2s 20s sh -c '
         . escapeshellarg($command) . ' 2>&1 | head -c 65536';
