@@ -190,6 +190,16 @@ body.theme-B{--bg:#edf3f7;--surface2:#f6fafc;--border:#becedb;--fg:#1e3242;--mut
 body.theme-B #terminal-shell,body.theme-B #input-wrapper,body.theme-B #header-bar,body.theme-B #terminal-footer{background:#f6fafc}body.theme-B .result{color:#344e60}body.theme-B .cmd-line .entered-command{color:#203a4c}
 body.theme-C{--acc:#e2e9ef;--ok:#bfcbd8}body.theme-D{--acc:#f3a6d2;--ok:#b6a2ed}body.theme-X{--acc:#b8b0ff;--ok:#91e0f1}body.theme-P{--acc:#9fb7ff;--ok:#b6d0ff}
 @media(max-width:640px){body{padding:14px 9px 20px}#workspace-top{gap:12px}.brand-title{font-size:15px}.status{display:none}#terminal-shell{min-height:75vh}#output{padding:18px 14px;min-height:320px}.result{font-size:12px;padding-left:10px}#input-wrapper{gap:7px;padding:14px 11px}.prompt-label{font-size:11px!important}#command-input{font-size:13px}#header-bar .session{display:none}#terminal-footer{font-size:10px}}
+/* Fixed viewport console: scroll command history inside the terminal only. */
+html,body{height:100%;overflow:hidden}
+body{height:100dvh;min-height:0;display:flex;flex-direction:column;padding-bottom:24px}
+#workspace{height:100%;min-height:0;display:flex;flex-direction:column}
+#workspace-top{flex:0 0 auto}
+#terminal-shell{flex:1 1 auto;min-height:0;height:auto}
+#output{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#39566b transparent}
+#input-wrapper,#terminal-footer,#header-bar{flex-shrink:0}
+#input-wrapper{position:relative;bottom:auto}
+@media(max-width:640px){body{height:100dvh;padding-bottom:12px}#terminal-shell{min-height:0}#output{min-height:0}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;scroll-behavior:auto!important}}
 </style>
 
@@ -299,6 +309,7 @@ body.theme-C{--acc:#e2e9ef;--ok:#bfcbd8}body.theme-D{--acc:#f3a6d2;--ok:#b6a2ed}
         line.append(prompt, entered);
         block.appendChild(line);
         output.appendChild(block);
+        output.scrollTop = output.scrollHeight;
 
         // Client-side commands
         if (cmd.toLowerCase() === 'clear' || cmd.toLowerCase() === 'cls') {
@@ -335,7 +346,7 @@ body.theme-C{--acc:#e2e9ef;--ok:#bfcbd8}body.theme-D{--acc:#f3a6d2;--ok:#b6a2ed}
             loader.classList.remove('active');
             input.disabled = false;
             input.focus();
-            block.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            output.scrollTo({ top: output.scrollHeight, behavior: 'smooth' });
         }
     }
 
