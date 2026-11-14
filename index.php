@@ -341,6 +341,31 @@ body{height:100dvh;min-height:0;display:flex;flex-direction:column;padding-botto
 .result .token-http-warn{color:#f0bf70;font-weight:700}
 .result .token-http-error{color:var(--err);font-weight:700}
 @media(max-width:640px){.cmd-heading{align-items:flex-start}.cmd-copy{padding:5px 7px}.result{padding:11px 10px}}
+/* Compact single-row toolbar: keep actions accessible without pushing terminal down. */
+#workspace-top{gap:12px;margin-bottom:12px}
+.top-actions{gap:10px;flex-wrap:nowrap;min-width:0}
+.action-group{gap:5px;padding-left:10px;flex-wrap:nowrap}
+.action-group .ui-button{width:38px;min-width:38px;height:38px;min-height:38px;padding:0;gap:0;border-radius:9px}
+.action-group .ui-button > span{display:none}
+.action-group .ui-button .action-icon{width:18px;height:18px}
+.export-controls{gap:4px}
+#export-format{height:38px;max-width:64px}
+.theme-control{gap:7px}
+.theme-select-wrap{min-width:0}
+#theme-picker{max-width:145px}
+@media(max-width:1100px){
+  #workspace-top{align-items:flex-start}
+  .top-actions{width:100%;justify-content:space-between;flex-wrap:wrap;row-gap:8px}
+  .action-group{padding-left:0;border-left:0}
+}
+@media(max-width:640px){
+  #workspace-top{gap:8px;margin-bottom:10px}
+  .top-actions{gap:6px}
+  .action-group{gap:4px}
+  .action-group .ui-button{width:34px;min-width:34px;height:36px;min-height:36px}
+  #export-format{height:36px;max-width:58px;font-size:10px}
+  #theme-picker{max-width:120px}
+}
 /* Export controls share the existing action-bar visual language. */
 .export-controls{display:flex;align-items:center;gap:5px}
 #export-format{height:36px;max-width:74px;border:1px solid var(--border);border-radius:7px;background:var(--button-bg);color:var(--fg);font:inherit;font-size:11px;padding:0 5px}
