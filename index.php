@@ -4,8 +4,13 @@
 // ════════════════════════════════════════════════════════════════
 
 // Local, session-bound arithmetic CAPTCHA; no external services or secrets.
-session_start();
 ini_set('display_errors', '0');
+ini_set('session.use_strict_mode', '1');
+ini_set('session.cookie_httponly', '1');
+ini_set('session.cookie_samesite', 'Lax');
+if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ini_set('session.cookie_secure', '1');
+ob_start();
+session_start();
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: no-referrer');
 header('X-Frame-Options: DENY');
