@@ -103,7 +103,8 @@ if (!empty($_SESSION['var']) && isset($_POST['command'])) {
     // IP-based limits shared across sessions (including fresh browser sessions).
     // Use the actual TCP peer address; never trust client-supplied IP headers.
     $clientIp = (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown');
-    $cmdName = strtolower(strtok(trim((string)$_POST['command']), " \\t\\r\\n") ?: '');
+    $cmdParts = preg_split('/\\s+/', trim((string)$_POST['command']), 2);
+    $cmdName = strtolower($cmdParts[0] ?? '');
     $heavy = in_array($cmdName, ['nmap', 'tracert', 'whois', 'rdap', 'dnsbl', 'dnssec'], true);
     $limitFile = sys_get_temp_dir() . '/console-rate-' . hash('sha256', $clientIp) . '.json';
     $fp = @fopen($limitFile, 'c+');
