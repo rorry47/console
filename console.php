@@ -261,6 +261,25 @@ if (in_array($command, $net_cmds, true)) {
         exit();
     }
 
+    // Accept both "dig example.com MX" and "dig MX example.com".
+    // Normalize before host validation so record types are never resolved as hosts.
+    if ($command === 'dig') {
+        $allowedDigTypes = ['A', 'AAAA', 'MX', 'NS', 'TXT', 'CNAME', 'SOA', 'PTR', 'ANY', 'CAA', 'SRV'];
+        if ($arg2 !== '' && in_array(strtoupper($arg1), $allowedDigTypes, true)) {
+            $digHost = $arg2;
+            $arg2 = $arg1;
+            $arg1 = $digHost;
+        }
+        if ($arg2 !== '' && !in_array(strtoupper($arg2), $allowedDigTypes, true)) {
+            err('dig: unsupported record type. Allowed: ' . implode(', ', $allowedDigTypes));
+            exit();
+        }
+        if (($tokens[3] ?? '') !== '') {
+            err('dig: too many arguments. Usage: dig [type] host or dig host [type]');
+            exit();
+        }
+    }
+
     $host = sanitizeHost($arg1);
     if ($host !== $arg1 || $host === '') { err('Invalid host format'); exit(); }
 
@@ -426,11 +445,7 @@ if (in_array($command, $net_cmds, true)) {
 
     // ── dig ───────────────────────────────────────────────────────────────────
 if ($command === 'dig') {
-    $type = strtoupper(preg_replace('/[^a-zA-Z]/', '', $arg2) ?: 'A');
-    $allowed_types = ['A', 'AAAA', 'MX', 'NS', 'TXT', 'CNAME', 'SOA', 'PTR', 'ANY'];
-    if (!in_array($type, $allowed_types, true)) {
-        $type = 'A';
-    }
+    $type = $arg2 !== '' ? strtoupper($arg2) : 'A';
 
     boundedExec('dig ' . escapeshellarg($host) . ' ' . escapeshellarg($type) . ' +noall +answer 2>&1', $out);
 
@@ -1190,7 +1205,7 @@ if ($command === 'help') {
             'tech [domain]'                   => 'Detect CMS, framework, server, CDN',
             'ping [host]'                     => 'Ping a host (4 packets)',
             'httping [host]'                  => 'HTTP ping a host',
-            'dig [host] [type]'               => 'DNS lookup (type: A MX NS TXT etc.)',
+            'dig [host] [type]'               => 'DNS lookup (also: dig MX example.com; A MX NS TXT etc.)',
             'nslookup [host]'                 => 'DNS lookup via nslookup',
             'curl [host]'                     => 'Fetch HTTP response headers',
             'nmap [host]'                     => 'Fast port scan (top ports)',
