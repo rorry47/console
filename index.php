@@ -200,20 +200,12 @@ body{height:100dvh;min-height:0;display:flex;flex-direction:column;padding-botto
 #input-wrapper,#terminal-footer,#header-bar{flex-shrink:0}
 #input-wrapper{position:relative;bottom:auto}
 @media(max-width:640px){body{height:100dvh;padding-bottom:12px}#terminal-shell{min-height:0}#output{min-height:0}}
+.theme-label{color:var(--muted);font-size:12px}#theme-picker{max-width:132px;color:var(--fg);background:#142132;border:1px solid var(--border)}#theme-picker option{color:#d9e5f1;background:#142132}
+body.theme-B{background:#edf3f7;color:#1e3242}body.theme-B #terminal-shell{border-color:#b4c5d3;box-shadow:0 16px 50px #31485d20}body.theme-B #output{background:#fff}body.theme-B .ui-button:not(#theme-picker){color:#1e3242;background:#e6eef4;border-color:#b4c5d3}body.theme-B .brand-icon{color:#087d83;background:#dceef0}body.theme-B .cmd-block{border-color:#dce6ed}body.theme-B #command-input{color:#1e3242}body.theme-B #command-input::placeholder{color:#647b8e}body.theme-B .result{border-color:#b4c5d3}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;scroll-behavior:auto!important}}
 </style>
 
-    <?php
-    $theme = $_SESSION['style'] ?? '';
-    if ($theme) {
-        echo '<script>document.documentElement.className="theme-' . htmlspecialchars($theme, ENT_QUOTES, 'UTF-8') . '";</script>';
-    }
-    ?>
-</head>
-<body class="<?= $theme ? 'theme-' . htmlspecialchars($theme, ENT_QUOTES, 'UTF-8') : '' ?>">
-
-<?php
-?>
+<body>
 
 <?php if (empty($_SESSION['var'])): ?>
     <div id="captcha-gate" style="max-width:350px;margin:12vh auto;padding:26px;border:1px solid #2e454c;border-radius:12px;background:#101820;text-align:center">
@@ -235,7 +227,7 @@ body{height:100dvh;min-height:0;display:flex;flex-direction:column;padding-botto
     <main id="workspace">
         <div id="workspace-top">
             <div class="brand"><div class="brand-icon" aria-hidden="true">&gt;_</div><div><div class="brand-title">Network Console <span style="color:var(--acc)">/</span></div><div class="brand-subtitle">Diagnostics &amp; developer utilities</div></div></div>
-            <div class="top-actions"><span class="status">Session active</span><button class="ui-button" id="help-button" type="button">Help</button><button class="ui-button" id="copy-button" type="button">Copy output</button><button class="ui-button" id="clear-button" type="button">Clear</button></div>
+            <div class="top-actions"><label for="theme-picker" class="theme-label">Theme</label><select id="theme-picker" class="ui-button" aria-label="Console color theme"><option value="">Midnight</option><option value="A">Matrix</option><option value="B">Light</option><option value="C">Slate</option><option value="D">Rose</option><option value="X">Violet</option><option value="P">Ocean</option></select><span class="status">Session active</span><button class="ui-button" id="help-button" type="button">Help</button><button class="ui-button" id="copy-button" type="button">Copy output</button><button class="ui-button" id="clear-button" type="button">Clear</button></div>
         </div>
         <section id="terminal-shell" aria-label="Interactive network console">
             <div id="header-bar">
@@ -255,6 +247,18 @@ body{height:100dvh;min-height:0;display:flex;flex-direction:column;padding-botto
     </main>
 
     <script>
+    const themePicker = document.getElementById('theme-picker');
+    const validThemes = ['', 'A', 'B', 'C', 'D', 'X', 'P'];
+    let savedTheme = '';
+    try { savedTheme = localStorage.getItem('console-theme') || ''; } catch (_) {}
+    if (!validThemes.includes(savedTheme)) savedTheme = '';
+    document.body.classList.toggle('theme-' + savedTheme, Boolean(savedTheme));
+    themePicker.value = savedTheme;
+    themePicker.addEventListener('change', () => {
+        for (const t of validThemes) if (t) document.body.classList.remove('theme-' + t);
+        if (themePicker.value && validThemes.includes(themePicker.value)) document.body.classList.add('theme-' + themePicker.value);
+        try { localStorage.setItem('console-theme', themePicker.value); } catch (_) {}
+    });
     const input   = document.getElementById('command-input');
     const output  = document.getElementById('output');
     const loader  = document.getElementById('loader');
