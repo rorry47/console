@@ -157,183 +157,41 @@ $displayName = getDisplayName();
 
 
     <style>
-        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-
-        :root {
-            --bg:   #1d1d1d;
-            --fg:   #cccccc;
-            --acc:  #6CF7FC;
-            --muted:#888;
-            --err:  #ff6b6b;
-            --ok:   #6bcb77;
-            --font: 'Arial', monospace;
-        }
-
-        body {
-            padding: 10px;
-            background: #141414;
-            color: var(--fg);
-            font-family: var(--font);
-            font-size: 15px;
-            line-height: 1.5;
-            min-height: 100vh;
-        }
-
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: #111; }
-        ::-webkit-scrollbar-thumb { background: #444; border-radius: 2px; }
-        ::-webkit-scrollbar-thumb:hover { background: #666; }
-
-        /* Header bar */
-        #header-bar {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 6px 10px;
-            background: #141414;
-            width: 100%;
-            border: 1px solid #2e2e2e;
-            border-radius: 6px;
-            margin-bottom: -5px;
-            position: relative;
-            font-size: 13px;
-            color: var(--muted);
-        }
-        #header-bar .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-        #header-bar .dot.r { background: #ff5f57; }
-        #header-bar .dot.y { background: #febc2e; }
-        #header-bar .dot.g { background: #28c840; }
-        #header-bar .title { flex: 1; text-align: center; color: var(--muted); }
-
-        /* Output area */
-        #output {
-            margin: 0px 10px 0px 10px;
-            background: #040404;
-            border-left: 1px solid #2e2e2e;
-            border-right: 1px solid #2e2e2e;
-            padding: 50px 20px 20px 20px;
-        }
-
-        /* Each command block */
-        .cmd-block { margin-bottom: 14px; }
-        .cmd-line  { color: var(--acc); margin-bottom: 4px; word-break: break-all; }
-        .cmd-line .prompt { color: var(--ok); }
-        .cmd-line .host   { color: #aaa; }
-        .inc_logo {
-            background: #686868;
-            border-radius: 4px;
-            margin-right: 5px;
-        }
-
-        .result {
-            white-space: pre-wrap;
-            word-break: break-word;
-            padding: 4px 20px 0;
-            font-family: 'Consolas', monospace;
-            font-size: 12px;
-            line-height: 1.1;
-            color: var(--fg);
-        }
-        .result a { color: var(--acc); text-decoration: none; }
-        .result a:hover { text-decoration: underline; }
-        .result b { color: var(--fg); }
-        .error-text { color: var(--err); }
-        .success-text { color: var(--ok); }
-
-        /* Input form */
-        #input-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 10px;
-            background: #141414;
-            border: 1px solid #2e2e2e;
-            border-radius: 6px;
-            position: sticky;
-            bottom: 0px;
-        }
-        #input-wrapper .prompt-label {
-            white-space: nowrap;
-            color: var(--ok);
-            font-size: 15px;
-            user-select: none;
-            display: flex;
-            align-items: center;
-        }
-        #input-wrapper .prompt-label .host { color: var(--acc); }
-        #command-input {
-            flex: 1;
-            background: transparent;
-            border: none;
-            outline: none;
-            color: var(--fg);
-            font-family: var(--font);
-            font-size: 15px;
-            caret-color: var(--acc);
-        }
-        #command-input::selection { background: #2a4a5a; }
-
-        /* Loader */
-        #loader {
-            display: none;
-            color: var(--muted);
-            font-size: 13px;
-            padding: 4px 20px 0;
-            font-size: 12px;
-            line-height: 1.1;
-        }
-        #loader.active { display: block;
-            color: var(--muted);
-            background: #000000;
-            border-left: 1px solid #2e2e2e;
-            font-size: 13px;
-            padding: 8px 10px;
-            font-size: 12px;
-            line-height: 1.1;}
-        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
-        #loader span { animation: blink 1s step-start infinite; }
-
-        /* Recaptcha gate */
-        #captcha-gate {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 16px;
-            padding: 20px 0;
-        }
-        .btn {
-            background: #2a2a2a;
-            color: var(--fg);
-            border: 1px solid #444;
-            border-radius: 5px;
-            padding: 6px 22px;
-            font-family: var(--font);
-            font-size: 14px;
-            cursor: pointer;
-            transition: background .15s, border-color .15s;
-        }
-        .btn:hover { background: #333; border-color: #666; }
-
-        /* Color themes */
-        body.theme-A { --bg:#000; --fg:#00C000; --acc:#00C000; --ok:#00a000; }
-        body.theme-B { --bg:#fff; --fg:#1d1d1d; --acc:#1d1d1d; --ok:#333; --err:#c00; }
-        body.theme-B ::-webkit-scrollbar-track { background: #eee; }
-        body.theme-B ::-webkit-scrollbar-thumb { background: #bbb; }
-        body.theme-C { --bg:#424242; --fg:#B8B8B8; --acc:#fff; --ok:#ccc; }
-        body.theme-D { --bg:#281022; --fg:#fff; --acc:#898989; --ok:#ccc; }
-        body.theme-X {
-            --fg:#fff; --acc:#a0a0ff; --ok:#ccc;
-            background: linear-gradient(to right, #1a2a6c, #b21f1f, #fdbb2d) !important;
-        }
-        body.theme-P { --bg:#1a2a6c; --fg:#fff; --acc:#898989; }
-
-        /* Mobile */
-        @media (max-width: 600px) {
-            body { font-size: 13px; padding: 8px 8px 70px; }
-            #command-input { font-size: 13px; }
-        }
-    </style>
+:root{color-scheme:dark;--bg:#090e17;--surface:#101927;--surface2:#0c1420;--border:#26364a;--fg:#d9e5f1;--muted:#8da1b7;--acc:#62e6da;--ok:#80e1a2;--err:#ff8799;--font:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace}
+*{box-sizing:border-box}html{min-height:100%;scroll-behavior:smooth}
+body{margin:0;min-height:100vh;background:radial-gradient(ellipse 65% 45% at 85% 0%,#12304566,transparent),radial-gradient(ellipse 50% 40% at 0% 90%,#102a3360,transparent),var(--bg);color:var(--fg);font:14px/1.65 var(--font);padding:24px clamp(12px,3vw,48px) 32px}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.22;background-image:linear-gradient(#ffffff06 1px,transparent 1px),linear-gradient(90deg,#ffffff06 1px,transparent 1px);background-size:36px 36px;z-index:-1}
+button,input{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
+::selection{background:#28776f;color:white}
+#workspace{width:min(100%,1320px);margin:0 auto}
+#workspace-top{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:20px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px}.brand-icon{width:44px;height:44px;display:grid;place-items:center;border:1px solid #28776f;border-radius:12px;background:#123038;color:var(--acc);font-size:22px;box-shadow:0 0 25px #36c4b318}
+.brand-title{font-size:17px;font-weight:750;letter-spacing:-.5px}.brand-subtitle{font:12px/1.3 var(--font);color:var(--muted)}
+.top-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.status{font-size:12px;color:var(--ok);margin-right:12px}.status::before{content:"";display:inline-block;width:7px;height:7px;background:var(--ok);border-radius:50%;margin-right:7px;box-shadow:0 0 12px var(--ok)}
+.ui-button{border:1px solid var(--border);background:#142132;color:var(--fg);padding:8px 13px;border-radius:8px;transition:background .2s,border-color .2s}.ui-button:hover{background:#1b3043;border-color:#3d6574}
+#terminal-shell{border:1px solid #304356;border-radius:15px;background:var(--surface2);overflow:hidden;box-shadow:0 24px 80px #0008,0 0 0 1px #ffffff05;min-height:66vh;display:flex;flex-direction:column}
+#header-bar{display:flex;align-items:center;gap:8px;padding:13px 17px;background:linear-gradient(180deg,#19283a,#142133);border-bottom:1px solid var(--border);font-size:12px;color:var(--muted)}
+#header-bar .dot{width:10px;height:10px;border-radius:50%}#header-bar .dot.r{background:#ff6c70}#header-bar .dot.y{background:#ffcf68}#header-bar .dot.g{background:#61d79c}
+#header-bar .title{flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#header-bar .session{font-size:11px;color:#7d96a9}
+#output{flex:1;min-height:350px;padding:24px clamp(16px,3vw,34px);overflow-wrap:anywhere}
+#output:empty::before{content:"Welcome to console.nkotov.net  •  Type help to get started";display:block;color:var(--muted);white-space:pre-wrap;padding:2px 0}
+.cmd-block{margin:0 0 24px;padding-bottom:18px;border-bottom:1px solid #203044}.cmd-block:last-child{border-bottom:0}.cmd-line{color:var(--fg);overflow-wrap:anywhere}.cmd-line .prompt,.prompt-label{color:var(--ok)}.cmd-line .host,.prompt-label .host{color:var(--acc)}.cmd-line .entered-command{color:#f4f8ff}
+.result{white-space:pre-wrap;overflow-wrap:anywhere;padding:12px 0 0 16px;margin-top:8px;border-left:2px solid #2a4a56;font-size:13px;line-height:1.65;color:#b7c8d7}
+.result a{color:var(--acc);text-decoration:underline;text-underline-offset:3px}.result b{color:#eef8ff}.error-text{color:var(--err)}.success-text{color:var(--ok)}
+#loader{display:none;padding:8px 26px;color:var(--acc);font-size:12px}#loader.active{display:block}#loader span{display:inline-block;animation:blink 1s step-start infinite}@keyframes blink{50%{opacity:0}}
+#input-wrapper{display:flex;align-items:center;gap:12px;padding:16px clamp(14px,3vw,30px);border-top:1px solid var(--border);background:#132030;position:sticky;bottom:0}
+#input-wrapper .prompt-label{white-space:nowrap;font-size:13px;user-select:none}#command-input{flex:1;min-width:0;border:0;background:transparent;color:var(--fg);outline:none;caret-color:var(--acc);font-size:14px}#command-input::placeholder{color:#71899e}
+#terminal-footer{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 17px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);background:#0e1926}
+.kbd{display:inline-block;border:1px solid #405166;border-radius:4px;padding:0 5px;color:#c6d5e3}
+.btn{background:#172b39;color:var(--fg);border:1px solid #385263;border-radius:7px;padding:9px 16px;cursor:pointer}.btn:hover{background:#203a49}
+#captcha-gate{box-shadow:0 22px 65px #0008}
+body.theme-A{--fg:#9bf59b;--acc:#74f87a;--ok:#75e78c}
+body.theme-B{--bg:#edf3f7;--surface2:#f6fafc;--border:#becedb;--fg:#1e3242;--muted:#5b7184;--acc:#087d83;--ok:#14784a;--err:#c02949;color-scheme:light}
+body.theme-B #terminal-shell,body.theme-B #input-wrapper,body.theme-B #header-bar,body.theme-B #terminal-footer{background:#f6fafc}body.theme-B .result{color:#344e60}body.theme-B .cmd-line .entered-command{color:#203a4c}
+body.theme-C{--acc:#e2e9ef;--ok:#bfcbd8}body.theme-D{--acc:#f3a6d2;--ok:#b6a2ed}body.theme-X{--acc:#b8b0ff;--ok:#91e0f1}body.theme-P{--acc:#9fb7ff;--ok:#b6d0ff}
+@media(max-width:640px){body{padding:14px 9px 20px}#workspace-top{gap:12px}.brand-title{font-size:15px}.status{display:none}#terminal-shell{min-height:75vh}#output{padding:18px 14px;min-height:320px}.result{font-size:12px;padding-left:10px}#input-wrapper{gap:7px;padding:14px 11px}.prompt-label{font-size:11px!important}#command-input{font-size:13px}#header-bar .session{display:none}#terminal-footer{font-size:10px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;scroll-behavior:auto!important}}
+</style>
 
     <?php
     $theme = $_SESSION['style'] ?? '';
@@ -364,33 +222,27 @@ $displayName = getDisplayName();
 
 <?php else: ?>
 
-    <!-- Main console UI -->
-    <div id="header-bar">
-        <span class="dot r"></span>
-        <span class="dot y"></span>
-        <span class="dot g"></span>
-        <span class="title"><b>console</b></span>
-        <span><?= $displayName ?></span>
-    </div>
-
-    <div id="output"></div>
-    <div id="loader"><span>▌</span> running...</div>
-
-    <div id="input-wrapper">
-        <span class="prompt-label">
-            <img src="/command-line.png" width="15px" class="inc_logo"> <b></b_><?= $displayName ?>@<span class="host">console</span> #:</b>
-        </span>
-        <input
-            type="text"
-            id="command-input"
-            autocomplete="off"
-            autocorrect="off"
-            autocapitalize="off"
-            spellcheck="false"
-            placeholder="type a command or 'help'"
-            autofocus
-        >
-    </div>
+    <main id="workspace">
+        <div id="workspace-top">
+            <div class="brand"><div class="brand-icon" aria-hidden="true">&gt;_</div><div><div class="brand-title">Network Console <span style="color:var(--acc)">/</span></div><div class="brand-subtitle">Diagnostics &amp; developer utilities</div></div></div>
+            <div class="top-actions"><span class="status">Session active</span><button class="ui-button" id="help-button" type="button">Help</button><button class="ui-button" id="copy-button" type="button">Copy output</button><button class="ui-button" id="clear-button" type="button">Clear</button></div>
+        </div>
+        <section id="terminal-shell" aria-label="Interactive network console">
+            <div id="header-bar">
+                <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+                <span class="title">console.nkotov.net — terminal</span>
+                <span class="session">● <?= $displayName ?></span>
+            </div>
+            <div id="output" role="log" aria-live="polite" aria-relevant="additions"></div>
+            <div id="loader" role="status"><span>▌</span> Executing command...</div>
+            <div id="input-wrapper">
+                <label for="command-input" class="prompt-label"><span class="host">~</span> $</label>
+                <input type="text" id="command-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Enter command, e.g. help" maxlength="2048" autofocus aria-label="Console command">
+                <button class="ui-button" id="run-button" type="button">Run ↵</button>
+            </div>
+            <div id="terminal-footer"><span><span class="kbd">↑</span> <span class="kbd">↓</span> history &nbsp; <span class="kbd">Enter</span> run</span><span><span class="kbd">Ctrl</span> + <span class="kbd">L</span> clear &nbsp; • &nbsp; First-party, privacy-friendly</span></div>
+        </section>
+    </main>
 
     <script>
     const input   = document.getElementById('command-input');
@@ -436,7 +288,16 @@ $displayName = getDisplayName();
         // Render command echo
         const block = document.createElement('div');
         block.className = 'cmd-block';
-        block.innerHTML = `<div class="cmd-line"><span class="prompt"><img src="/command-line.png" width="15px" class="inc_logo"><b><?= $displayName ?>@<span class="host">console</span> #:</b></span> ${escHtml(cmd)}</div>`;
+        const line = document.createElement('div');
+        line.className = 'cmd-line';
+        const prompt = document.createElement('span');
+        prompt.className = 'prompt';
+        prompt.textContent = '~ $ ';
+        const entered = document.createElement('span');
+        entered.className = 'entered-command';
+        entered.textContent = cmd;
+        line.append(prompt, entered);
+        block.appendChild(line);
         output.appendChild(block);
 
         // Client-side commands
@@ -474,7 +335,7 @@ $displayName = getDisplayName();
             loader.classList.remove('active');
             input.disabled = false;
             input.focus();
-            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+            block.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
         }
     }
 
@@ -482,8 +343,22 @@ $displayName = getDisplayName();
         return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
-    // Auto-focus on click anywhere
-    document.addEventListener('click', () => input.focus());
+    document.getElementById('run-button').addEventListener('click', submit);
+    document.getElementById('help-button').addEventListener('click', () => { input.value = 'help'; submit(); });
+    document.getElementById('clear-button').addEventListener('click', () => { output.replaceChildren(); input.focus(); });
+    document.getElementById('copy-button').addEventListener('click', async () => {
+        const button = document.getElementById('copy-button');
+        try {
+            await navigator.clipboard.writeText(output.innerText);
+            button.textContent = 'Copied ✓';
+            input.focus();
+        } catch (err) {
+            button.textContent = 'Copy unavailable';
+        }
+    });
+    document.getElementById('terminal-shell').addEventListener('click', e => {
+        if (e.target === output || e.target === document.getElementById('terminal-shell')) input.focus();
+    });
     </script>
 
 <?php endif; ?>
