@@ -325,6 +325,29 @@ body{height:100dvh;min-height:0;display:flex;flex-direction:column;padding-botto
 .status{margin-right:0;white-space:nowrap}
 @media(max-width:900px){#workspace-top{align-items:flex-start}.top-actions{gap:10px}.action-group{padding-left:0;border-left:0}.brand-subtitle{font-size:11px}}
 @media(max-width:640px){#workspace-top{gap:14px}.top-actions{width:100%;justify-content:space-between;gap:8px}.theme-control{gap:7px}.theme-label{display:none}.theme-select-wrap{min-width:120px}.action-group{gap:6px}.ui-button{min-height:39px;padding:8px 10px;gap:6px}.action-group .button-label{display:none}.status{display:none}}
+/* Network activity visualization: decorative, not a connectivity indicator. */
+.brand-icon svg{width:29px;height:29px;overflow:visible;filter:drop-shadow(0 0 8px var(--page-glow))}
+.brand-icon .logo-cursor{animation:logo-cursor 1.4s steps(1,end) infinite}
+@keyframes logo-cursor{50%{opacity:.15}}
+.terminal-identity{display:inline-flex;align-items:center;gap:8px;min-width:0;flex:1;justify-content:center}
+.terminal-identity svg{flex:0 0 auto;color:var(--acc);opacity:.85}
+#header-bar .title{flex:0 1 auto}
+.network-activity{display:inline-flex;align-items:center;gap:3px;height:18px;padding:0 3px;color:var(--acc)}
+.network-activity i{display:block;width:3px;height:5px;border-radius:3px;background:currentColor;opacity:.35;transform-origin:bottom;animation:activity-bars 1.35s ease-in-out infinite}
+.network-activity i:nth-child(2){animation-delay:.16s}
+.network-activity i:nth-child(3){animation-delay:.32s}
+.network-activity i:nth-child(4){animation-delay:.48s}
+@keyframes activity-bars{0%,100%{height:5px;opacity:.3}45%{height:14px;opacity:.85}}
+#terminal-shell.is-executing .network-activity i{animation-duration:.55s}
+#terminal-shell.is-executing #header-bar::after{opacity:.85}
+.terminal-rail{display:flex;align-items:center;gap:9px;min-width:0}
+.terminal-rail .session{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:170px}
+#loader.active{display:flex;align-items:center;gap:10px}
+#loader.active::before{content:"";width:10px;height:10px;border:2px solid var(--border);border-top-color:var(--acc);border-radius:50%;animation:loader-spin .7s linear infinite}
+@keyframes loader-spin{to{transform:rotate(360deg)}}
+#loader.active span{display:none}
+@media(max-width:640px){.terminal-identity{gap:5px}.terminal-identity svg{width:13px;height:13px}.network-activity{gap:2px}.network-activity i{width:2px}.terminal-rail{display:none}#header-bar .title{font-size:11px}}
+@media(prefers-reduced-motion:reduce){.brand-icon .logo-cursor,.network-activity i,#loader.active::before{animation:none!important}}
 /* UI refresh: decorative layers, improved hierarchy and accessible focus. */
 body{position:relative;isolation:isolate}
 body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;background:conic-gradient(from 160deg at 50% 50%,transparent 0deg,var(--page-glow) 68deg,transparent 135deg,var(--page-glow2) 235deg,transparent 310deg);filter:blur(95px);opacity:.33;animation:ambient-drift 28s ease-in-out infinite alternate}
@@ -386,7 +409,7 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
 
     <main id="workspace">
         <div id="workspace-top">
-            <div class="brand"><div class="brand-icon" aria-hidden="true">&gt;_</div><div><div class="brand-title">Network Console <span style="color:var(--acc)">/</span></div><div class="brand-subtitle">Diagnostics &amp; developer utilities</div></div></div>
+            <div class="brand"><div class="brand-icon" aria-hidden="true"><svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 11 8 7-8 7"/><path d="M19 26h9"/><path class="logo-cursor" d="M29 9v6" stroke-width="2"/></svg></div><div><div class="brand-title">Network Console <span style="color:var(--acc)">/</span></div><div class="brand-subtitle">Diagnostics &amp; developer utilities</div></div></div>
             <div class="top-actions">
                 <div class="theme-control"><span class="theme-control-icon"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18h1.5a2.5 2.5 0 0 0 2.1-4 1.5 1.5 0 0 1 1.3-2.3H19a2 2 0 0 0 2-2 9 9 0 0 0-9-9Z"/><circle cx="7.5" cy="11" r=".7" fill="currentColor" stroke="none"/><circle cx="10" cy="7.5" r=".7" fill="currentColor" stroke="none"/><circle cx="15" cy="8" r=".7" fill="currentColor" stroke="none"/></svg></span><label for="theme-picker" class="theme-label">Theme</label><div class="theme-select-wrap"><select id="theme-picker" aria-label="Console color theme"><option value="">Midnight</option><option value="A">Matrix</option><option value="B">Light</option><option value="C">Slate</option><option value="D">Rose</option><option value="X">Violet</option><option value="P">Ocean</option></select><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></div></div>
                 <span class="status">Session active</span>
@@ -395,8 +418,8 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
         <section id="terminal-shell" aria-label="Interactive network console">
             <div id="header-bar">
                 <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
-                <span class="title">console.nkotov.net — terminal</span>
-                <span class="session">● <?= $displayName ?></span>
+                <span class="terminal-identity"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="m7 10 3 2-3 2m6 0h4"/></svg><span class="title">console.nkotov.net — terminal</span><span class="network-activity" aria-hidden="true"><i></i><i></i><i></i><i></i></span></span>
+                <span class="terminal-rail"><span class="session">● <?= $displayName ?></span></span>
             </div>
             <div id="output" role="log" aria-live="polite" aria-relevant="additions"></div>
             <div id="loader" role="status"><span>▌</span> Executing command...</div>
@@ -486,6 +509,7 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
         }
 
         loader.classList.add('active');
+        document.getElementById('terminal-shell').classList.add('is-executing');
         input.disabled = true;
 
         try {
@@ -512,6 +536,7 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
             block.appendChild(pre);
         } finally {
             loader.classList.remove('active');
+            document.getElementById('terminal-shell').classList.remove('is-executing');
             input.disabled = false;
             input.focus();
             output.scrollTo({ top: output.scrollHeight, behavior: 'smooth' });
