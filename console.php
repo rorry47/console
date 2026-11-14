@@ -273,7 +273,7 @@ if (in_array($command, $net_cmds, true)) {
 
     // Resolve once and pin IP for active network tools to avoid DNS rebinding.
     $targetIp = resolvePublicIp($host);
-    if (isBlocked($targetIp)) { err('Host not allowed'); exit(); }
+    if ($targetIp === null) { err('Host not allowed'); exit(); }
     // ── ping ──────────────────────────────────────────────────────────────────
     if ($command === 'ping') {
         boundedExec('ping -c 4 -W 3 ' . escapeshellarg($targetIp) . ' 2>&1', $out);
@@ -836,7 +836,7 @@ if ($command === 'dnsbl') {
             $urlScheme = strtolower((string)parse_url($current_url, PHP_URL_SCHEME));
             if (!$urlHost || !in_array($urlScheme, ['http','https'], true) || ($urlPort !== null && !in_array($urlPort, [80,443], true)) || isBlocked($urlHost)) { err('Redirect target blocked'); break; }
             $urlIp = resolvePublicIp($urlHost);
-            if ($urlIp === null || isBlocked($urlIp)) { err('Redirect target blocked'); break; }
+            if ($urlIp === null) { err('Redirect target blocked'); break; }
             $ch = curl_init();
             curl_setopt_array($ch, [
                 CURLOPT_RESOLVE => [$urlHost . ':' . ($urlPort ?: ($urlScheme === 'https' ? 443 : 80)) . ':' . $urlIp],
@@ -848,6 +848,7 @@ if ($command === 'dnsbl') {
                 CURLOPT_TIMEOUT        => 8,
                 CURLOPT_PROTOCOLS      => CURLPROTO_HTTP | CURLPROTO_HTTPS,
                 CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_SSL_VERIFYHOST => 2,
                 CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; console/2.0)',
             ]);
             $response  = curl_exec($ch);
@@ -928,9 +929,10 @@ if ($command === 'dnsbl') {
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HEADER         => true,
             CURLOPT_FOLLOWLOCATION => false,
-            CURLOPT_MAXREDIRS      => 5,
+            CURLOPT_MAXREDIRS      => 0,
             CURLOPT_TIMEOUT        => 10,
             CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; console/2.0)',
         ]);
         $response  = curl_exec($ch);
