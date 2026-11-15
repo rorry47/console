@@ -504,6 +504,43 @@ body.theme-K::before{opacity:.28}
 @media(max-width:640px){#header-bar{min-height:44px}#workspace-top{padding-top:0}.brand-icon{width:40px;height:40px}.ui-button:hover{transform:none}}
 @media(prefers-reduced-motion:reduce){body::after,.cmd-block{animation:none!important}.brand-icon,.ui-button,#terminal-shell{transition:none!important}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;scroll-behavior:auto!important}}
+
+/* User preferences dialog and responsive console layout. */
+body.console-wide{padding-left:10px;padding-right:10px}
+body.console-wide #workspace{width:100%;max-width:none}
+body.console-full{padding:0}
+body.console-full #workspace{width:100%;max-width:none}
+body.console-full #workspace-top{padding:9px 14px;margin:0}
+body.console-full #terminal-shell{border-radius:0;border-left:0;border-right:0;border-bottom:0}
+body.console-font-custom{font-family:var(--user-font)}
+body.console-font-custom #command-input,body.console-font-custom .brand-subtitle{font-family:var(--user-font)}
+body.console-font-size{font-size:var(--user-font-size)}
+body.console-font-size #command-input{font-size:inherit}
+body.console-font-size .result{font-size:inherit}
+body.console-font-size .cmd-line{font-size:inherit}
+body.console-font-size #output{font-size:inherit}
+body.bg-off .dot-waves,body.bg-off::after{display:none}
+body.bg-grid .dot-waves{display:none}
+body.bg-grid::before{display:block;z-index:0;inset:0;opacity:.42;animation:none;background-image:radial-gradient(circle,var(--acc) 1px,transparent 1.5px);background-size:32px 32px}
+body.bg-static .wave-layer{animation:none!important}
+#settings-dialog[hidden]{display:none}
+#settings-dialog{position:fixed;inset:0;z-index:1200;display:grid;place-items:center;padding:16px;background:#0009;backdrop-filter:blur(5px)}
+.settings-panel{width:min(100%,470px);max-height:min(90dvh,750px);overflow-y:auto;border:1px solid var(--terminal-outline);border-radius:16px;background:var(--terminal-bg);color:var(--fg);box-shadow:0 24px 90px #0009;padding:23px}
+.settings-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:17px}
+.settings-head h2{margin:0;font-size:18px}
+.settings-close{background:var(--button-bg);color:var(--fg);border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:22px;line-height:1.2}
+.settings-field{display:grid;gap:7px;margin:0 0 17px}
+.settings-field label{font-weight:650;font-size:13px}
+.settings-field select,.settings-field input[type=color]{width:100%;min-height:41px;border:1px solid var(--border);border-radius:8px;background:var(--input-bg);color:var(--fg);padding:8px;font:inherit}
+.settings-field input[type=color]{padding:4px;cursor:pointer}
+.settings-field input[type=range]{width:100%;accent-color:var(--acc)}
+.settings-field .settings-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.settings-field output{color:var(--acc);font-variant-numeric:tabular-nums}
+.settings-footer{display:flex;justify-content:space-between;gap:12px;padding-top:13px;border-top:1px solid var(--border)}
+.settings-footer button{padding:9px 15px;border:1px solid var(--border);border-radius:8px;background:var(--button-bg);color:var(--fg)}
+.settings-footer button:last-child{background:var(--brand-bg);color:var(--acc)}
+@media(max-width:640px){body.console-full #workspace-top{padding:8px} .settings-panel{padding:17px}}
+
 </style>
 
 <body>
@@ -548,7 +585,7 @@ body.theme-K::before{opacity:.28}
             <div class="brand"><div class="brand-icon" aria-hidden="true"><svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 11 8 7-8 7"/><path d="M19 26h9"/><path class="logo-cursor" d="M29 9v6" stroke-width="2"/></svg></div><div><div class="brand-title">Network Console <span style="color:var(--acc)">/</span></div><div class="brand-subtitle">Diagnostics &amp; developer utilities</div></div></div>
             <div class="top-actions">
                 <div class="theme-control"><span class="theme-control-icon"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18h1.5a2.5 2.5 0 0 0 2.1-4 1.5 1.5 0 0 1 1.3-2.3H19a2 2 0 0 0 2-2 9 9 0 0 0-9-9Z"/><circle cx="7.5" cy="11" r=".7" fill="currentColor" stroke="none"/><circle cx="10" cy="7.5" r=".7" fill="currentColor" stroke="none"/><circle cx="15" cy="8" r=".7" fill="currentColor" stroke="none"/></svg></span><label for="theme-picker" class="theme-label">Theme</label><div class="theme-select-wrap"><select id="theme-picker" aria-label="Console color theme"><option value="">Midnight</option><option value="A">Matrix</option><option value="B">Light</option><option value="C">Slate</option><option value="D">Rose</option><option value="X">Violet</option><option value="P">Ocean</option><option value="K">OLED Black</option><option value="L">Lavender Mist</option><option value="W">Warm Paper</option><option value="S">Sage Forest</option></select><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></div></div>
-                <div class="action-group"><button class="ui-button" id="help-button" type="button" title="Show commands"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.7 2.7 0 1 1 4.7 1.8c-1.2 1.2-2.2 1.4-2.2 3.2"/><path d="M12 17.5h.01"/></svg><span>Help</span></button><button class="ui-button" id="copy-button" type="button" title="Copy terminal output"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg><span class="button-label">Copy output</span></button><div class="export-controls"><label class="sr-only" for="export-format">Report format</label><select id="export-format" aria-label="Report format"><option value="txt">TXT</option><option value="json">JSON</option><option value="pdf">PDF</option></select><button class="ui-button" id="export-button" type="button" title="Export completed results from the current tab"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4"/><path d="M5 16v4h14v-4"/></svg><span class="button-label">Export</span></button></div><button class="ui-button" id="screenshot-button" type="button" title="Save terminal screenshot as PNG"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3"/><path d="M8 6l1.5-2h5L16 6"/></svg><span class="button-label">Screenshot</span></button><button class="ui-button" id="clear-button" type="button" title="Clear terminal"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span>Clear</span></button></div></div>
+                <button class="ui-button" id="settings-button" type="button" title="Customize console" aria-label="Open console settings" aria-haspopup="dialog"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2 2-.06-.06A1.7 1.7 0 0 0 15.9 18.5a1.7 1.7 0 0 0-1.1 1.55V21h-2.8v-.95a1.7 1.7 0 0 0-1.1-1.55 1.7 1.7 0 0 0-1.84.38l-.06.06-2-2 .06-.06A1.7 1.7 0 0 0 7.4 15a1.7 1.7 0 0 0-1.55-1.1H5v-2.8h.85A1.7 1.7 0 0 0 7.4 10a1.7 1.7 0 0 0-.34-1.88L7 8.06l2-2 .06.06A1.7 1.7 0 0 0 10.9 6.5 1.7 1.7 0 0 0 12 4.95V4h2.8v.95a1.7 1.7 0 0 0 1.1 1.55 1.7 1.7 0 0 0 1.84-.38l.06-.06 2 2-.06.06A1.7 1.7 0 0 0 19.4 10a1.7 1.7 0 0 0 1.55 1.1H22v2.8h-1.05A1.7 1.7 0 0 0 19.4 15Z" transform="translate(-1 -1)"/></svg><span class="button-label">Settings</span></button><div class="action-group"><button class="ui-button" id="help-button" type="button" title="Show commands"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.7 2.7 0 1 1 4.7 1.8c-1.2 1.2-2.2 1.4-2.2 3.2"/><path d="M12 17.5h.01"/></svg><span>Help</span></button><button class="ui-button" id="copy-button" type="button" title="Copy terminal output"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg><span class="button-label">Copy output</span></button><div class="export-controls"><label class="sr-only" for="export-format">Report format</label><select id="export-format" aria-label="Report format"><option value="txt">TXT</option><option value="json">JSON</option><option value="pdf">PDF</option></select><button class="ui-button" id="export-button" type="button" title="Export completed results from the current tab"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4"/><path d="M5 16v4h14v-4"/></svg><span class="button-label">Export</span></button></div><button class="ui-button" id="screenshot-button" type="button" title="Save terminal screenshot as PNG"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3"/><path d="M8 6l1.5-2h5L16 6"/></svg><span class="button-label">Screenshot</span></button><button class="ui-button" id="clear-button" type="button" title="Clear terminal"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span>Clear</span></button></div></div>
         </div>
         <section id="terminal-shell" aria-label="Interactive network console">
             <div id="header-bar">
@@ -569,6 +606,17 @@ body.theme-K::before{opacity:.28}
         </section>
     </main>
 
+    <div id="settings-dialog" hidden>
+        <section class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+            <div class="settings-head"><h2 id="settings-title">Console settings</h2><button id="settings-close" class="settings-close" type="button" aria-label="Close settings">×</button></div>
+            <div class="settings-field"><label for="settings-font">Font family</label><select id="settings-font"><option value="default">System monospace</option><option value="menlo">Menlo / Monaco</option><option value="consolas">Consolas</option><option value="courier">Courier New</option><option value="system">System UI</option><option value="serif">Serif</option></select></div>
+            <div class="settings-field"><div class="settings-row"><label for="settings-size">Font size</label><output id="settings-size-value" for="settings-size">14 px</output></div><input id="settings-size" type="range" min="11" max="22" step="1" value="14"></div>
+            <div class="settings-field"><label for="settings-background">Background</label><select id="settings-background"><option value="waves">Animated dotted waves</option><option value="static">Static dotted waves</option><option value="grid">Dot grid</option><option value="off">No animation / plain background</option></select></div>
+            <div class="settings-field"><label for="settings-color">Custom accent color</label><input id="settings-color" type="color" value="#62e6da"><label class="settings-row" style="font-weight:400"><span>Use custom color</span><input id="settings-custom-color" type="checkbox"></label></div>
+            <div class="settings-field"><label for="settings-width">Console width</label><select id="settings-width"><option value="normal">Standard (1320 px)</option><option value="wide">Wide (full available width)</option><option value="full">Full page (edge to edge)</option></select></div>
+            <div class="settings-footer"><button id="settings-reset" type="button">Reset defaults</button><button id="settings-done" type="button">Done</button></div>
+        </section>
+    </div>
     <div id="command-palette" hidden>
         <div class="palette-dialog" role="dialog" aria-modal="true" aria-label="Command palette">
             <input id="palette-search" type="search" placeholder="Search commands by name or purpose..." autocomplete="off" aria-label="Search commands">
@@ -590,6 +638,93 @@ body.theme-K::before{opacity:.28}
         if (themePicker.value && validThemes.includes(themePicker.value)) document.body.classList.add('theme-' + themePicker.value);
         try { localStorage.setItem('console-theme', themePicker.value); } catch (_) {}
     });
+
+    // Appearance preferences are local to this browser; never sent to the server.
+    const settingsKey = 'console-appearance-v1';
+    const settingsDialog = document.getElementById('settings-dialog');
+    const settingsButton = document.getElementById('settings-button');
+    const settingsFields = {
+        font: document.getElementById('settings-font'),
+        size: document.getElementById('settings-size'),
+        background: document.getElementById('settings-background'),
+        color: document.getElementById('settings-color'),
+        customColor: document.getElementById('settings-custom-color'),
+        width: document.getElementById('settings-width')
+    };
+    const appearanceDefaults = {font:'default',size:14,background:'waves',color:'#62e6da',customColor:false,width:'normal'};
+    const fontChoices = {
+        default:'',menlo:'Menlo, Monaco, monospace',consolas:'Consolas, monospace',
+        courier:'"Courier New", monospace',system:'system-ui, sans-serif',serif:'Georgia, serif'
+    };
+    let appearance = {...appearanceDefaults};
+    try {
+        const stored = JSON.parse(localStorage.getItem(settingsKey) || '{}');
+        if (stored && typeof stored === 'object' && !Array.isArray(stored)) appearance = {...appearance, ...stored};
+    } catch (_) {}
+    function validateAppearance(value) {
+        return {
+            font:Object.hasOwn(fontChoices,value.font) ? value.font : 'default',
+            size:Number.isInteger(Number(value.size)) ? Math.max(11,Math.min(22,Number(value.size))) : 14,
+            background:['waves','static','grid','off'].includes(value.background) ? value.background : 'waves',
+            color:typeof value.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(value.color) ? value.color : '#62e6da',
+            customColor:value.customColor === true,
+            width:['normal','wide','full'].includes(value.width) ? value.width : 'normal'
+        };
+    }
+    function applyAppearance() {
+        appearance = validateAppearance(appearance);
+        document.body.classList.toggle('console-font-custom',appearance.font !== 'default');
+        document.body.classList.toggle('console-font-size',appearance.size !== 14);
+        document.body.style.setProperty('--user-font',fontChoices[appearance.font] || 'inherit');
+        document.body.style.setProperty('--user-font-size',appearance.size + 'px');
+        for (const cls of ['bg-off','bg-grid','bg-static','console-wide','console-full']) document.body.classList.remove(cls);
+        if (appearance.background !== 'waves') document.body.classList.add('bg-' + appearance.background);
+        if (appearance.width !== 'normal') document.body.classList.add('console-' + appearance.width);
+        if (appearance.customColor) document.body.style.setProperty('--acc',appearance.color);
+        else document.body.style.removeProperty('--acc');
+        settingsFields.font.value = appearance.font;
+        settingsFields.size.value = String(appearance.size);
+        document.getElementById('settings-size-value').textContent = appearance.size + ' px';
+        settingsFields.background.value = appearance.background;
+        settingsFields.color.value = appearance.color;
+        settingsFields.customColor.checked = appearance.customColor;
+        settingsFields.width.value = appearance.width;
+    }
+    function saveAppearance() {
+        applyAppearance();
+        try { localStorage.setItem(settingsKey,JSON.stringify(appearance)); } catch (_) {}
+    }
+    function closeSettings() {
+        settingsDialog.hidden = true;
+        settingsButton.focus();
+    }
+    settingsButton.addEventListener('click',() => {
+        settingsDialog.hidden = false;
+        settingsFields.font.focus();
+    });
+    document.getElementById('settings-close').addEventListener('click',closeSettings);
+    document.getElementById('settings-done').addEventListener('click',closeSettings);
+    settingsDialog.addEventListener('click',e => { if (e.target === settingsDialog) closeSettings(); });
+    settingsDialog.addEventListener('keydown',e => {
+        if (e.key === 'Escape') { e.preventDefault(); closeSettings(); return; }
+        if (e.key !== 'Tab') return;
+        const focusables = [...settingsDialog.querySelectorAll('button,select,input:not([disabled])')];
+        const first = focusables[0], last = focusables[focusables.length - 1];
+        if (e.shiftKey && document.activeElement === first) {e.preventDefault();last.focus();}
+        else if (!e.shiftKey && document.activeElement === last) {e.preventDefault();first.focus();}
+    });
+    for (const [key,field] of Object.entries(settingsFields)) {
+        field.addEventListener('input',() => {
+            appearance[key] = key === 'customColor' ? field.checked : key === 'size' ? Number(field.value) : field.value;
+            saveAppearance();
+        });
+    }
+    document.getElementById('settings-reset').addEventListener('click',() => {
+        appearance = {...appearanceDefaults};
+        saveAppearance();
+    });
+    applyAppearance();
+
     const input   = document.getElementById('command-input');
     const output  = document.getElementById('output');
     const loader  = document.getElementById('loader');
