@@ -140,8 +140,9 @@ if ($command === 'su') {
         exit();
     }
     $name = preg_replace('/[^a-zA-Z0-9_\-]/', '', mb_substr($arg1, 0, 32));
+    if ($name === '') { err('su: invalid name'); exit(); }
     $_SESSION['name'] = $name;
-    header('Location: ' . CONSOLE_URL);
+    ok('Switched console identity to ' . $name);
     exit();
 }
 
