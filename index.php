@@ -451,11 +451,17 @@ body::before{
 /* Ambient dotted waves: decorative SVG behind the workspace, GPU-friendly motion. */
 body::before{display:none}
 .dot-waves{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;overflow:hidden;color:var(--acc);opacity:.52}
-.dot-waves .wave{fill:none;stroke:currentColor;stroke-width:3.5;stroke-linecap:round;stroke-dasharray:.1 13;vector-effect:non-scaling-stroke}
-.dot-waves .wave-layer{transform-origin:center;animation:dot-wave-float 16s ease-in-out infinite alternate}
-.dot-waves .wave-layer:nth-child(2){animation-duration:21s;animation-delay:-8s;opacity:.68}
-.dot-waves .wave-layer:nth-child(3){animation-duration:26s;animation-delay:-13s;opacity:.42}
-@keyframes dot-wave-float{from{transform:translate3d(-22px,18px,0)}to{transform:translate3d(26px,-23px,0)}}
+.dot-waves .wave{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-dasharray:.1 11;vector-effect:non-scaling-stroke}
+.dot-waves .wave-layer{transform-box:fill-box;transform-origin:center;animation:dot-wave-swell 17s ease-in-out infinite}
+.dot-waves .wave-layer:nth-child(2){animation-duration:23s;animation-delay:-8s;opacity:.68}
+.dot-waves .wave-layer:nth-child(3){animation-duration:29s;animation-delay:-13s;opacity:.42}
+/* Oscillate wave amplitude and phase rather than merely sliding the pattern. */
+@keyframes dot-wave-swell{
+  0%,100%{transform:translate3d(-18px,8px,0) scaleY(.76) skewX(-3deg)}
+  25%{transform:translate3d(5px,-10px,0) scaleY(1.15) skewX(2deg)}
+  50%{transform:translate3d(23px,6px,0) scaleY(.88) skewX(4deg)}
+  75%{transform:translate3d(-3px,15px,0) scaleY(1.23) skewX(-2deg)}
+}
 #workspace{position:relative;z-index:1}
 body.theme-K .dot-waves{opacity:.38}
 @media(prefers-reduced-motion:reduce){.dot-waves .wave-layer{animation:none!important}}
