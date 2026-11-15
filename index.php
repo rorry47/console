@@ -433,6 +433,26 @@ body{height:100dvh;min-height:0;display:flex;flex-direction:column;padding-botto
 body{position:relative;isolation:isolate}
 body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;background:conic-gradient(from 160deg at 50% 50%,transparent 0deg,var(--page-glow) 68deg,transparent 135deg,var(--page-glow2) 235deg,transparent 310deg);filter:blur(95px);opacity:.33;animation:ambient-drift 28s ease-in-out infinite alternate}
 @keyframes ambient-drift{from{transform:translate3d(-3%,1%,0) rotate(-8deg)}to{transform:translate3d(4%,-3%,0) rotate(9deg)}}
+
+/* Quiet ambient background: slow drifting dot field, no JS or canvas. */
+body::before{
+  inset:-48px;
+  opacity:.38;
+  background-image:radial-gradient(circle,var(--border) .75px,transparent 1px);
+  background-size:32px 32px;
+  background-position:0 0;
+  animation:background-dots 75s linear infinite;
+  will-change:transform;
+}
+@keyframes background-dots{
+  from{transform:translate3d(0,0,0)}
+  to{transform:translate3d(32px,32px,0)}
+}
+/* Keep OLED genuinely black, with only a faint graphite dot pattern. */
+body.theme-K::after{display:none}
+body.theme-K::before{opacity:.28}
+@media(prefers-reduced-motion:reduce){body::before{animation:none!important;will-change:auto}}
+
 #workspace-top{position:relative}
 .brand-icon{position:relative;overflow:hidden;font-weight:800;letter-spacing:-2px;box-shadow:inset 0 1px 0 #ffffff19,0 8px 26px #0003,0 0 25px var(--page-glow);transition:transform .25s ease,box-shadow .25s ease}
 .brand-icon::after{content:"";position:absolute;inset:-50%;background:linear-gradient(120deg,transparent 35%,#ffffff22 50%,transparent 65%);transform:translateX(-90%) rotate(15deg);transition:transform .65s ease}
