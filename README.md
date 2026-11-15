@@ -4,7 +4,7 @@ A browser-based network diagnostics console built with **PHP 7.4+**, HTML, CSS a
 
 **Live demo:** https://console.nkotov.net
 
-![Network Console screenshot](console-screen.png)
+![Network Console screenshot](console-screens.png)
 
 ## Features
 
