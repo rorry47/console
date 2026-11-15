@@ -448,6 +448,17 @@ body::before{
   from{transform:translate3d(0,0,0)}
   to{transform:translate3d(32px,32px,0)}
 }
+/* Ambient dotted waves: decorative SVG behind the workspace, GPU-friendly motion. */
+body::before{display:none}
+.dot-waves{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;overflow:hidden;color:var(--acc);opacity:.52}
+.dot-waves .wave{fill:none;stroke:currentColor;stroke-width:3.5;stroke-linecap:round;stroke-dasharray:.1 13;vector-effect:non-scaling-stroke}
+.dot-waves .wave-layer{transform-origin:center;animation:dot-wave-float 16s ease-in-out infinite alternate}
+.dot-waves .wave-layer:nth-child(2){animation-duration:21s;animation-delay:-8s;opacity:.68}
+.dot-waves .wave-layer:nth-child(3){animation-duration:26s;animation-delay:-13s;opacity:.42}
+@keyframes dot-wave-float{from{transform:translate3d(-22px,18px,0)}to{transform:translate3d(26px,-23px,0)}}
+#workspace{position:relative;z-index:1}
+body.theme-K .dot-waves{opacity:.38}
+@media(prefers-reduced-motion:reduce){.dot-waves .wave-layer{animation:none!important}}
 /* Keep OLED genuinely black, with only a faint graphite dot pattern. */
 body.theme-K::after{display:none}
 body.theme-K::before{opacity:.28}
@@ -490,6 +501,24 @@ body.theme-K::before{opacity:.28}
 </style>
 
 <body>
+    <svg class="dot-waves" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+        <g class="wave-layer">
+            <path class="wave" d="M-200 490 C100 240 290 750 590 490 S1080 240 1380 490 S1790 740 1950 490"/>
+            <path class="wave" d="M-200 515 C100 265 290 775 590 515 S1080 265 1380 515 S1790 765 1950 515"/>
+            <path class="wave" d="M-200 540 C100 290 290 800 590 540 S1080 290 1380 540 S1790 790 1950 540"/>
+            <path class="wave" d="M-200 565 C100 315 290 825 590 565 S1080 315 1380 565 S1790 815 1950 565"/>
+        </g>
+        <g class="wave-layer">
+            <path class="wave" d="M-200 210 C120 430 330 -40 640 210 S1110 440 1440 210 S1810 -10 1960 210"/>
+            <path class="wave" d="M-200 235 C120 455 330 -15 640 235 S1110 465 1440 235 S1810 15 1960 235"/>
+            <path class="wave" d="M-200 260 C120 480 330 10 640 260 S1110 490 1440 260 S1810 40 1960 260"/>
+        </g>
+        <g class="wave-layer">
+            <path class="wave" d="M-200 770 C120 520 340 970 640 770 S1110 540 1440 770 S1800 990 1960 770"/>
+            <path class="wave" d="M-200 795 C120 545 340 995 640 795 S1110 565 1440 795 S1800 1015 1960 795"/>
+            <path class="wave" d="M-200 820 C120 570 340 1020 640 820 S1110 590 1440 820 S1800 1040 1960 820"/>
+        </g>
+    </svg>
 
 <?php if (empty($_SESSION['var'])): ?>
     <div id="captcha-gate" style="max-width:350px;margin:12vh auto;padding:26px;border:1px solid #2e454c;border-radius:12px;background:#101820;text-align:center">
