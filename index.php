@@ -498,7 +498,7 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
         <section id="terminal-shell" aria-label="Interactive network console">
             <div id="header-bar">
                 <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
-                <span class="terminal-identity"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="m7 10 3 2-3 2m6 0h4"/></svg><span class="title">console.nkotov.net — terminal</span><span class="network-activity" aria-hidden="true"><i></i><i></i><i></i><i></i></span></span>
+                <span class="terminal-identity"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="m7 10 3 2-3 2m6 0h4"/></svg><span class="title">console.nkotov.net — terminal</span></span>
                 <span class="terminal-rail"><span class="session">● <?= $displayName ?></span></span>
             </div>
             <div id="terminal-tabs" role="tablist" aria-label="Terminal tabs"></div>
