@@ -986,7 +986,7 @@ body::after{content:"";position:fixed;inset:-35%;z-index:-1;pointer-events:none;
             enhanceResult(out, res.status);
             block.appendChild(out);
             // Update the header only after the server confirms a successful su.
-            const suMatch = /^su\\s+([a-zA-Z0-9_-]{1,32})$/i.exec(cmd);
+            const suMatch = /^su\s+([a-zA-Z0-9_-]{1,32})$/i.exec(cmd);
             if (res.ok && suMatch && out.textContent.trim() === 'Switched console identity to ' + suMatch[1]) {
                 document.getElementById('terminal-identity-name').textContent = suMatch[1];
             }
