@@ -541,6 +541,27 @@ body.bg-static .wave-layer{animation:none!important}
 .settings-footer button:last-child{background:var(--brand-bg);color:var(--acc)}
 @media(max-width:640px){body.console-full #workspace-top{padding:8px} .settings-panel{padding:17px}}
 
+
+/* Theme picker with actual palette previews. Native select remains a hidden sync target. */
+.theme-select-wrap{position:relative;min-width:0}
+#theme-picker{display:none!important}
+#theme-trigger{display:flex;align-items:center;gap:9px;min-height:42px;max-width:185px;width:175px;padding:7px 10px;border:1px solid var(--border);border-radius:9px;background:var(--button-bg);color:var(--button-text);font:600 12px/1.4 var(--font);cursor:pointer}
+#theme-trigger:hover{border-color:var(--acc);background:var(--button-hover)}
+#theme-trigger:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+#theme-current-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;text-align:left}
+#theme-trigger>.action-icon{position:static;transform:none;flex:none;color:var(--muted)}
+.theme-swatch{display:inline-flex;flex:none;overflow:hidden;width:35px;height:21px;border:1px solid #80808070;border-radius:5px;background:var(--sw-bg)}
+.theme-swatch::before{content:"";width:50%;height:100%;background:var(--sw-panel);border-right:2px solid var(--sw-accent)}
+.theme-swatch::after{content:"";width:50%;height:100%;background:linear-gradient(150deg,var(--sw-bg) 55%,var(--sw-accent) 56%)}
+#theme-menu[hidden]{display:none}
+#theme-menu{position:absolute;top:calc(100% + 8px);right:0;width:245px;max-height:min(410px,65dvh);overflow:auto;z-index:100;border:1px solid var(--terminal-outline);border-radius:12px;background:var(--terminal-bg);padding:6px;box-shadow:0 18px 50px #0009;scrollbar-width:thin}
+.theme-option{width:100%;display:flex;align-items:center;gap:12px;border:0;border-radius:8px;background:transparent;color:var(--fg);padding:9px 10px;text-align:left;font:600 13px/1.4 var(--font);cursor:pointer}
+.theme-option:hover,.theme-option[aria-selected=true]{background:var(--button-hover)}
+.theme-option[aria-selected=true]{outline:1px solid var(--border)}
+.theme-option .theme-swatch{width:48px;height:28px}
+.theme-option .theme-check{margin-left:auto;color:var(--acc)}
+@media(max-width:640px){#theme-trigger{width:144px;min-height:39px;font-size:11px}#theme-menu{left:0;right:auto;width:225px}}
+
 </style>
 
 <body>
@@ -584,7 +605,7 @@ body.bg-static .wave-layer{animation:none!important}
         <div id="workspace-top">
             <div class="brand"><div class="brand-icon" aria-hidden="true"><svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 11 8 7-8 7"/><path d="M19 26h9"/><path class="logo-cursor" d="M29 9v6" stroke-width="2"/></svg></div><div><div class="brand-title">Network Console <span style="color:var(--acc)">/</span></div><div class="brand-subtitle">Diagnostics &amp; developer utilities</div></div></div>
             <div class="top-actions">
-                <div class="theme-control"><span class="theme-control-icon"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18h1.5a2.5 2.5 0 0 0 2.1-4 1.5 1.5 0 0 1 1.3-2.3H19a2 2 0 0 0 2-2 9 9 0 0 0-9-9Z"/><circle cx="7.5" cy="11" r=".7" fill="currentColor" stroke="none"/><circle cx="10" cy="7.5" r=".7" fill="currentColor" stroke="none"/><circle cx="15" cy="8" r=".7" fill="currentColor" stroke="none"/></svg></span><label for="theme-picker" class="theme-label">Theme</label><div class="theme-select-wrap"><select id="theme-picker" aria-label="Console color theme"><option value="">Midnight</option><option value="A">Matrix</option><option value="B">Light</option><option value="C">Slate</option><option value="D">Rose</option><option value="X">Violet</option><option value="P">Ocean</option><option value="K">OLED Black</option><option value="L">Lavender Mist</option><option value="W">Warm Paper</option><option value="S">Sage Forest</option></select><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></div></div>
+                <div class="theme-control"><span class="theme-control-icon" aria-hidden="true"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18h1.5a2.5 2.5 0 0 0 2.1-4 1.5 1.5 0 0 1 1.3-2.3H19a2 2 0 0 0 2-2 9 9 0 0 0-9-9Z"/></svg></span><span class="theme-label">Theme</span><div class="theme-select-wrap"><button id="theme-trigger" type="button" aria-label="Choose console color theme" aria-haspopup="listbox" aria-expanded="false"><span class="theme-swatch" id="theme-current-swatch" aria-hidden="true"></span><span id="theme-current-name">Midnight</span><svg class="action-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div id="theme-menu" role="listbox" aria-label="Console color theme" hidden></div><select id="theme-picker" tabindex="-1" aria-hidden="true" aria-label="Console color theme"><option value="">Midnight</option><option value="A">Matrix</option><option value="B">Light</option><option value="C">Slate</option><option value="D">Rose</option><option value="X">Violet</option><option value="P">Ocean</option><option value="K">OLED Black</option><option value="L">Lavender Mist</option><option value="W">Warm Paper</option><option value="S">Sage Forest</option></select></div></div>
                 <button class="ui-button" id="settings-button" type="button" title="Customize console" aria-label="Open console settings" aria-haspopup="dialog"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2 2-.06-.06A1.7 1.7 0 0 0 15.9 18.5a1.7 1.7 0 0 0-1.1 1.55V21h-2.8v-.95a1.7 1.7 0 0 0-1.1-1.55 1.7 1.7 0 0 0-1.84.38l-.06.06-2-2 .06-.06A1.7 1.7 0 0 0 7.4 15a1.7 1.7 0 0 0-1.55-1.1H5v-2.8h.85A1.7 1.7 0 0 0 7.4 10a1.7 1.7 0 0 0-.34-1.88L7 8.06l2-2 .06.06A1.7 1.7 0 0 0 10.9 6.5 1.7 1.7 0 0 0 12 4.95V4h2.8v.95a1.7 1.7 0 0 0 1.1 1.55 1.7 1.7 0 0 0 1.84-.38l.06-.06 2 2-.06.06A1.7 1.7 0 0 0 19.4 10a1.7 1.7 0 0 0 1.55 1.1H22v2.8h-1.05A1.7 1.7 0 0 0 19.4 15Z" transform="translate(-1 -1)"/></svg><span class="button-label">Settings</span></button><div class="action-group"><button class="ui-button" id="help-button" type="button" title="Show commands"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.7 2.7 0 1 1 4.7 1.8c-1.2 1.2-2.2 1.4-2.2 3.2"/><path d="M12 17.5h.01"/></svg><span>Help</span></button><button class="ui-button" id="copy-button" type="button" title="Copy terminal output"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg><span class="button-label">Copy output</span></button><div class="export-controls"><label class="sr-only" for="export-format">Report format</label><select id="export-format" aria-label="Report format"><option value="txt">TXT</option><option value="json">JSON</option><option value="pdf">PDF</option></select><button class="ui-button" id="export-button" type="button" title="Export completed results from the current tab"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4"/><path d="M5 16v4h14v-4"/></svg><span class="button-label">Export</span></button></div><button class="ui-button" id="screenshot-button" type="button" title="Save terminal screenshot as PNG"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3"/><path d="M8 6l1.5-2h5L16 6"/></svg><span class="button-label">Screenshot</span></button><button class="ui-button" id="clear-button" type="button" title="Clear terminal"><svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span>Clear</span></button></div></div>
         </div>
         <section id="terminal-shell" aria-label="Interactive network console">
@@ -638,6 +659,102 @@ body.bg-static .wave-layer{animation:none!important}
         if (themePicker.value && validThemes.includes(themePicker.value)) document.body.classList.add('theme-' + themePicker.value);
         try { localStorage.setItem('console-theme', themePicker.value); } catch (_) {}
     });
+
+    // Build palette previews from the real CSS theme variables, not hardcoded approximations.
+    const themeTrigger = document.getElementById('theme-trigger');
+    const themeMenu = document.getElementById('theme-menu');
+    const themeCurrentName = document.getElementById('theme-current-name');
+    const themeCurrentSwatch = document.getElementById('theme-current-swatch');
+    const themeOptions = [];
+    const themePalettes = {
+        '': ['#090e17','#0c1420','#62e6da'],
+        A: ['#061009','#09160d','#74f87a'],
+        B: ['#edf3f7','#ffffff','#087d83'],
+        C: ['#141a20','#19222b','#e2e9ef'],
+        D: ['#180e1b','#1d1121','#f3a6d2'],
+        X: ['#101023','#13132a','#b8b0ff'],
+        P: ['#09162a','#0c1c35','#9fb7ff'],
+        K: ['#000000','#050505','#c9d5df'],
+        L: ['#f7f2fa','#fffaff','#926da8'],
+        W: ['#f7f4ed','#fffdf8','#a2764b'],
+        S: ['#101b18','#14211b','#a8c8ad']
+    };
+    function paintSwatch(el,theme) {
+        const [bg,panel,accent] = themePalettes[theme] || themePalettes[''];
+        el.style.setProperty('--sw-bg',bg);
+        el.style.setProperty('--sw-panel',panel);
+        el.style.setProperty('--sw-accent',accent);
+    }
+    function syncThemeMenu() {
+        const selected = themePicker.value;
+        themeCurrentName.textContent = themePicker.selectedOptions[0]?.textContent || 'Midnight';
+        paintSwatch(themeCurrentSwatch,selected);
+        themeOptions.forEach(button => {
+            const active = button.dataset.theme === selected;
+            button.setAttribute('aria-selected',String(active));
+            button.querySelector('.theme-check').textContent = active ? '✓' : '';
+        });
+    }
+    function closeThemeMenu(restoreFocus=false) {
+        themeMenu.hidden = true;
+        themeTrigger.setAttribute('aria-expanded','false');
+        if (restoreFocus) themeTrigger.focus();
+    }
+    for (const option of themePicker.options) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'theme-option';
+        button.setAttribute('role','option');
+        button.dataset.theme = option.value;
+        const swatch = document.createElement('span');
+        swatch.className = 'theme-swatch';
+        swatch.setAttribute('aria-hidden','true');
+        paintSwatch(swatch,option.value);
+        const name = document.createElement('span');
+        name.textContent = option.textContent;
+        const check = document.createElement('span');
+        check.className = 'theme-check';
+        check.setAttribute('aria-hidden','true');
+        button.append(swatch,name,check);
+        button.addEventListener('click',() => {
+            themePicker.value = option.value;
+            themePicker.dispatchEvent(new Event('change',{bubbles:true}));
+            closeThemeMenu(true);
+        });
+        themeMenu.appendChild(button);
+        themeOptions.push(button);
+    }
+    themePicker.addEventListener('change',syncThemeMenu);
+    themeTrigger.addEventListener('click',() => {
+        if (!themeMenu.hidden) {closeThemeMenu();return;}
+        themeMenu.hidden = false;
+        themeTrigger.setAttribute('aria-expanded','true');
+        (themeOptions.find(b => b.dataset.theme === themePicker.value) || themeOptions[0]).focus();
+    });
+    themeTrigger.addEventListener('keydown',e => {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            themeMenu.hidden = false;
+            themeTrigger.setAttribute('aria-expanded','true');
+            (themeOptions.find(b => b.dataset.theme === themePicker.value) || themeOptions[0]).focus();
+        }
+    });
+    themeMenu.addEventListener('keydown',e => {
+        const current = themeOptions.indexOf(document.activeElement);
+        if (e.key === 'Escape') {e.preventDefault();closeThemeMenu(true);}
+        else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            themeOptions[(current + (e.key === 'ArrowDown' ? 1 : -1) + themeOptions.length) % themeOptions.length].focus();
+        } else if (e.key === 'Home' || e.key === 'End') {
+            e.preventDefault();
+            themeOptions[e.key === 'Home' ? 0 : themeOptions.length - 1].focus();
+        } else if (e.key === 'Tab') closeThemeMenu();
+    });
+    document.addEventListener('pointerdown',e => {
+        if (!themeTrigger.contains(e.target) && !themeMenu.contains(e.target)) closeThemeMenu();
+    });
+    syncThemeMenu();
+
 
     // Appearance preferences are local to this browser; never sent to the server.
     const settingsKey = 'console-appearance-v1';
