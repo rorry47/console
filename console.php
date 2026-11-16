@@ -29,8 +29,8 @@ if (!defined('CONSOLE_INTERNAL_DISPATCH') || CONSOLE_INTERNAL_DISPATCH !== true 
 // ─── Constants ──────────────────────────────────────────────────────────────
 const VERSION       = '2.0';
 const MAX_INPUT_LEN = 253;
-const CONSOLE_URL   = 'https://example.com/';
-const SITE_URL      = 'https://example.com/';
+const CONSOLE_URL   = 'https://console.nkotov.net/';
+const SITE_URL      = 'https://www.google.com/';
 
 // ─── Parse input ─────────────────────────────────────────────────────────────
 if (!is_string($_POST['command']) || strlen($_POST['command']) > 2048) { http_response_code(400); exit('Invalid command length'); }
@@ -155,7 +155,9 @@ if ($command === 'whoami') {
 
 // ─── exit ─────────────────────────────────────────────────────────────────────
 if ($command === 'exit') {
-    header('Location: ' . SITE_URL);
+    // AJAX fetch cannot reliably navigate across origins via a 302.
+    header('X-Console-Exit: 1');
+    echo 'Leaving console...';
     exit();
 }
 
