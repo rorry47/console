@@ -591,7 +591,7 @@ body.bg-static .wave-layer{animation:none!important}
             <div id="header-bar">
                 <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
                 <span class="terminal-identity"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="m7 10 3 2-3 2m6 0h4"/></svg><span class="title"><span id="terminal-identity-name"><?= htmlspecialchars((string)($_SESSION['name'] ?? 'console.nkotov.net'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></span> — terminal</span></span>
-                <span class="terminal-rail"><span class="session">● <?= $displayName ?></span></span>
+                <span class="terminal-rail"><span class="session">● <span id="terminal-session-name"><?= $displayName ?></span></span></span>
             </div>
             <div id="terminal-tabs" role="tablist" aria-label="Terminal tabs"></div>
             <div id="output" role="log" aria-live="polite" aria-relevant="additions"></div>
@@ -1165,6 +1165,11 @@ body.bg-static .wave-layer{animation:none!important}
             const res  = await fetch('', { method: 'POST', body: fd });
             const text = await res.text();
 
+            // Navigate in the top-level page only after the server confirms exit.
+            if (res.ok && cmd.toLowerCase() === 'exit' && res.headers.get('X-Console-Exit') === '1') {
+                window.location.assign('https://www.google.com/');
+                return;
+            }
             if (res.redirected) {
                 window.location.href = res.url;
                 return;
@@ -1179,6 +1184,7 @@ body.bg-static .wave-layer{animation:none!important}
             const suMatch = /^su\s+([a-zA-Z0-9_-]{1,32})$/i.exec(cmd);
             if (res.ok && suMatch && out.textContent.trim() === 'Switched console identity to ' + suMatch[1]) {
                 document.getElementById('terminal-identity-name').textContent = suMatch[1];
+                document.getElementById('terminal-session-name').textContent = suMatch[1];
             }
             rememberResult(cmd, out.innerText, res.status);
         } catch (err) {
